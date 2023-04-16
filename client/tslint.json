@@ -5,7 +5,7 @@
   "rules": {
     "trailing-comma": [false],
     "no-console": {
-      "severity": "warning",
+      "severity": "none",
       "options": ["debug", "info", "log", "time", "timeEnd", "trace"]
     }
   },
