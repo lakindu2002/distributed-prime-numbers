@@ -1,9 +1,7 @@
 import axios from "axios";
 import node from "@distributed/utils/node";
-import { EurekaClient } from "@distributed/utils/eureka";
 import { ConnectedNode, NodeCheck, Message } from "@distributed/types/common";
-
-export const constructUrlToHit = (ip: string, port: number, path: string) => `http://${ip}:${port}${path}`;
+import { constructUrlToHit, getAllConnectedNodesFromRegistry } from "./common-util";
 
 export const areNodesReadyForElection = async (higherNodeChecks: ConnectedNode[]): Promise<NodeCheck[]> => {
   const promises = higherNodeChecks.map(async (higherNode) => {
@@ -12,17 +10,6 @@ export const areNodesReadyForElection = async (higherNodeChecks: ConnectedNode[]
   })
   const responses = await Promise.all(promises);
   return responses;
-};
-
-/**
- * Fetch all connected nodes in service regsitry in custom shape
- * @returns Connected Nodes.
- */
-const getAllConnectedNodesFromRegistry = (): ConnectedNode[] => {
-  return EurekaClient
-    .getSingleton()
-    .getInstances()
-    .map((higherNode) => ({ port: Number((higherNode.port as any).$), ip: higherNode.ipAddr, instanceId: Number(higherNode.instanceId) }));
 };
 
 /**
@@ -114,7 +101,7 @@ export const onConnectedToServer = async () => {
  * notifies the leader to all the connected nodes.
  * @param leaderId the leader of the system
  */
-const notifyLeaderElected = async (leaderId: number) => {
+export const notifyLeaderElected = async (leaderId: number) => {
   const connectedNodes = getAllConnectedNodesFromRegistry();
   const requests = connectedNodes.map(async (connectedNode) => {
     const url = constructUrlToHit(connectedNode.ip, connectedNode.port, '/election/completed')
@@ -125,17 +112,4 @@ const notifyLeaderElected = async (leaderId: number) => {
   })
   await Promise.all(requests);
   console.log(`Elected - ${leaderId} as the leader in the system.`)
-}
-
-/**
- * broadcasts a message to all connected nodes.
- * @param payload message to broadcast
- */
-export const broadcastMessage = async ({ action, payload }: Message) => {
-  switch (action) {
-    case 'leader_elected': {
-      await notifyLeaderElected(payload.leaderId);
-      break;
-    }
-  }
 }

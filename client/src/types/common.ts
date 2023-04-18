@@ -18,3 +18,26 @@ type LeaderElectedMessage = {
 }
 
 export type Message = LeaderElectedMessage;
+
+type PrimeResponse = {
+  action: 'prime',
+  payload: {
+    number: number,
+    isPrime: boolean,
+    start: number,
+    end: number
+  }
+}
+
+type NonPrimeResponse = {
+  action: 'non-prime',
+  payload: {
+    number: number,
+    isPrime: boolean,
+    start: number,
+    end: number,
+    divisibleBy: number
+  }
+}
+
+export type PrimeProcess = PrimeResponse | NonPrimeResponse;
