@@ -1,56 +1,25 @@
-import express from "express";
 import { EurekaClient } from "@distributed/utils/eureka";
+import cli from "@distributed/utils/cli";
+import api from '@distributed/server';
+import node from '@distributed/utils/node';
 
-// tslint:disable-next-line:no-var-requires
 require("dotenv").config();
 
-// tslint:disable-next-line:no-var-requires
-const yargs = require("yargs");
+const port = cli.getPortNumber();
 
-// adding CLI params for port and hostname
-const argv = yargs.options({
-  port: {
-    alias: "p",
-    describe: "Port number",
-    type: "number",
-    demandOption: true,
-  },
-  host: {
-    alias: "h",
-    describe: "Host name",
-    type: "string",
-    demandOption: true,
-  },
-}).argv;
+api.startServer(port);
 
-// initializing express app
-const app = express();
-
-const port = argv.port;
-
-const eurekaClient = new EurekaClient({
+const eurekaClient = EurekaClient.getSingleton({
   appName: process.env.APP_NAME,
-  hostName: argv.host,
+  hostName: cli.getHostName(),
   ipAddr: "127.0.0.1",
-  port: Number(port),
-});
-
-// json middleware
-app.use(express.json());
-
-// define a route handler for the default home page
-app.get("/", (req, res) => {
-  res.send("Hello world");
-});
-
-// start the Express server
-app.listen(port, () => {
-  console.log(`server started at http://localhost:${port}`);
+  port,
+  instanceId: node.getNodeId().toString()
 });
 
 eurekaClient.connectWithServer();
 
-function exitHandler(options: any, exitCode: any) {
+function exitHandler(options: any) {
   if (options.exit) {
     eurekaClient.disconnectFromServer();
   }
@@ -59,11 +28,6 @@ function exitHandler(options: any, exitCode: any) {
 // deregistered listener
 (eurekaClient.getClient() as any).on("deregistered", () => {
   process.exit();
-});
-
-// instance created listener
-(eurekaClient.getClient() as any).on("started", () => {
-  console.log("Started Connection");
 });
 
 process.on("SIGINT", exitHandler.bind(null, { exit: true }));
