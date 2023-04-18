@@ -1,13 +1,13 @@
 import axios from "axios";
 import node from "@distributed/utils/node";
 import { EurekaClient } from "@distributed/utils/eureka";
-import { ConnectedNode, ElectionCheck, Message } from "@distributed/types/common";
+import { ConnectedNode, NodeCheck, Message } from "@distributed/types/common";
 
 export const constructUrlToHit = (ip: string, port: number, path: string) => `http://${ip}:${port}${path}`;
 
-export const areNodesReadyForElection = async (higherNodeChecks: ConnectedNode[]): Promise<ElectionCheck[]> => {
+export const areNodesReadyForElection = async (higherNodeChecks: ConnectedNode[]): Promise<NodeCheck[]> => {
   const promises = higherNodeChecks.map(async (higherNode) => {
-    const resp = await axios.get<ElectionCheck>(constructUrlToHit(higherNode.ip, higherNode.port, '/election/ready'))
+    const resp = await axios.get<NodeCheck>(constructUrlToHit(higherNode.ip, higherNode.port, '/election/ready'))
     return resp.data;
   })
   const responses = await Promise.all(promises);
@@ -18,7 +18,7 @@ export const areNodesReadyForElection = async (higherNodeChecks: ConnectedNode[]
  * Fetch all connected nodes in service regsitry in custom shape
  * @returns Connected Nodes.
  */
-const getAllConnectedNodes = (): ConnectedNode[] => {
+const getAllConnectedNodesFromRegistry = (): ConnectedNode[] => {
   return EurekaClient
     .getSingleton()
     .getInstances()
@@ -31,8 +31,18 @@ const getAllConnectedNodes = (): ConnectedNode[] => {
  * @param currentNodeId the instance id of the current node
  * @returns all nodes that have higher instance id than connected node.
  */
-const getHigherNodes = (connectedNodes: ConnectedNode[], currentNodeId: number) => {
+const getHigherNodesFromRegistry = (connectedNodes: ConnectedNode[], currentNodeId: number) => {
   return connectedNodes.filter((connectedNode) => connectedNode.instanceId > currentNodeId);
+};
+
+/**
+ * Talks with all other nodes and gets their information
+ * @param higherNodes The nodes that have a higher instance ID than current node.
+ * @returns The node information.
+ */
+const getAllHigherNodeInformation = async (higherNodes: ConnectedNode[]): Promise<NodeCheck[]> => {
+  const checks = await areNodesReadyForElection(higherNodes);
+  return checks;
 };
 
 /**
@@ -43,16 +53,16 @@ const getHigherNodes = (connectedNodes: ConnectedNode[], currentNodeId: number) 
  * @param higherNodes The nodes that have a higher instance ID than current node.
  * @returns boolean to check if election can be started.
  */
-const areHigherNodesReadyForElection = async (higherNodes: ConnectedNode[]) => {
-  const checks = await areNodesReadyForElection(higherNodes);
-  return checks.some((check) => check.isElectionReady);
+const isReadyForElection = (higherNodes: NodeCheck[]): boolean => {
+  return higherNodes.some((higherNode) => higherNode.isElectionReady);
 };
+
 
 export const startElection = async (currentNodeId: number) => {
   node.setElectionOnGoing(true); // began an election.
 
-  const connectedNodes = getAllConnectedNodes();
-  const higherNodes = getHigherNodes(connectedNodes, currentNodeId);
+  const connectedNodes = getAllConnectedNodesFromRegistry();
+  const higherNodes = getHigherNodesFromRegistry(connectedNodes, currentNodeId);
 
   if (higherNodes.length === 0) {
     // no more nodes higher than connected node.
@@ -62,7 +72,16 @@ export const startElection = async (currentNodeId: number) => {
     return;
   }
 
-  const isElectionAllowed = await areHigherNodesReadyForElection(higherNodes);
+  const checkingHigherNodes = await getAllHigherNodeInformation(higherNodes);
+  const isLeaderExisting = checkingHigherNodes.find((checkingNode) => checkingNode.isLeader);
+
+  if (isLeaderExisting) {
+    node.setLeaderId(isLeaderExisting.instanceId)
+    return;
+  }
+
+  // check if election can be done
+  const isElectionAllowed = isReadyForElection(checkingHigherNodes);
 
   if (!isElectionAllowed) {
     node.setElectionOnGoing(false);
@@ -87,7 +106,7 @@ export const onConnectedToServer = async () => {
  * @param leaderId the leader of the system
  */
 const notifyLeaderElected = async (leaderId: number) => {
-  const connectedNodes = getAllConnectedNodes();
+  const connectedNodes = getAllConnectedNodesFromRegistry();
   const requests = connectedNodes.map(async (connectedNode) => {
     const url = constructUrlToHit(connectedNode.ip, connectedNode.port, '/election/completed')
     const payload = {
@@ -96,6 +115,7 @@ const notifyLeaderElected = async (leaderId: number) => {
     await axios.post(url, payload);
   })
   await Promise.all(requests);
+  console.log(`Elected - ${leaderId} as the leader in the system.`)
 }
 
 /**

@@ -4,9 +4,10 @@ export interface ConnectedNode {
   port: number;
 }
 
-export interface ElectionCheck {
+export interface NodeCheck {
   instanceId: number,
   isElectionReady: boolean
+  isLeader: boolean,
 }
 
 type LeaderElectedMessage = {

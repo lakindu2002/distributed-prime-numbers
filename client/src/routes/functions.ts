@@ -18,7 +18,7 @@ export const health = (_req: Request, res: Response) => {
 
 export const isReadyForElection = (_req: Request, res: Response) => {
   const isElectionReady = !node.isElectionOnGoing() && !node.isLeader();
-  res.json({ isElectionReady, instanceId: node.getNodeId() })
+  res.json({ isElectionReady, instanceId: node.getNodeId(), isLeader: node.isLeader() })
 }
 
 export const getNodeInformation = (_req: Request, res: Response) => {
