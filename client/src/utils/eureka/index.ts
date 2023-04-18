@@ -6,7 +6,7 @@ type EurekaCreate = {
   appName: string;
   hostName: string;
   ipAddr: string;
-  instanceId: string
+  instanceId: string;
 };
 
 export class EurekaClient {
@@ -42,7 +42,8 @@ export class EurekaClient {
         fetchMetadata: true,
         host: process.env.EUREKA_HOST,
         port: Number(process.env.EUREKA_PORT),
-        servicePath: '/eureka/apps/'
+        servicePath: '/eureka/apps/',
+        registryFetchInterval: 100
       },
     });
   }

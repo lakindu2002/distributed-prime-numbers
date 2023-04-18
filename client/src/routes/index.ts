@@ -7,7 +7,7 @@ routes.get("/", getHome);
 routes.get('/apps', getAllInstances)
 routes.get('/health', health)
 routes.get('/information', getNodeInformation);
-routes.get('/election', processElectionRequest);
+routes.post('/election', processElectionRequest);
 routes.get('/election/ready', isReadyForElection);
 routes.post('/election/completed', electNewLeader);
 

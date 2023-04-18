@@ -33,7 +33,8 @@ export const getNodeInformation = (_req: Request, res: Response) => {
 export const processElectionRequest = async (req: Request, res: Response) => {
   const { invokeNodeId } = req.body;
   if (!invokeNodeId) {
-    return res.status(400);
+    res.status(400);
+    res.json({ message: 'INVALID_NODE_ID' });
   }
   await startElection(node.getNodeId());
 }
@@ -42,4 +43,5 @@ export const electNewLeader = (req: Request, res: Response) => {
   const { leaderId } = req.body;
   node.setLeaderId(leaderId);
   node.setElectionOnGoing(false);
+  res.json({ message: 'LEADER_ELECTED' })
 }

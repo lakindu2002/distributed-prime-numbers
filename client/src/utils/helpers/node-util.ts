@@ -59,12 +59,19 @@ const isReadyForElection = (higherNodes: NodeCheck[]): boolean => {
 
 
 export const startElection = async (currentNodeId: number) => {
+  if (node.isElectionOnGoing()) {
+    console.log('Found ongoing election, hence stopping.')
+    // election is on going.
+    // do not start another election.
+    return;
+  }
   node.setElectionOnGoing(true); // began an election.
 
   const connectedNodes = getAllConnectedNodesFromRegistry();
   const higherNodes = getHigherNodesFromRegistry(connectedNodes, currentNodeId);
 
   if (higherNodes.length === 0) {
+    console.log(`No higher node, making current node - ${currentNodeId} as leader.`)
     // no more nodes higher than connected node.
     // make connected node the leader.
     await node.setLeaderId(currentNodeId, true);
@@ -76,7 +83,9 @@ export const startElection = async (currentNodeId: number) => {
   const isLeaderExisting = checkingHigherNodes.find((checkingNode) => checkingNode.isLeader);
 
   if (isLeaderExisting) {
+    console.log('Leader Existing', isLeaderExisting.instanceId);
     node.setLeaderId(isLeaderExisting.instanceId)
+    node.setElectionOnGoing(false);
     return;
   }
 
