@@ -1,3 +1,4 @@
+import { Role } from "@distributed/types/common";
 import { broadcastMessage } from "@distributed/utils/helpers";
 
 export const createNodeId = (): number => {
@@ -14,6 +15,7 @@ export const createNodeId = (): number => {
 export class Node {
   private nodeId: number;
   private leaderId: number | undefined;
+  private role: Role
   private _isLeader: boolean;
   private _isLeaderAvailable: boolean;
   private _isElectionOnGoing: boolean;
@@ -68,6 +70,14 @@ export class Node {
 
   setElectionOnGoing(value: boolean) {
     this._isElectionOnGoing = value;
+  }
+
+  setRole(role: Role) {
+    this.role = role;
+  }
+
+  getRole() {
+    return this.role;
   }
 }
 

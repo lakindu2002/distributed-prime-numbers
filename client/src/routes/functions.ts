@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
-import { EurekaClient } from "@distributed/utils/eureka";
 import node from "@distributed/utils/node";
+import { EurekaClient } from "@distributed/utils/eureka";
 import { startElection } from "@distributed/utils/helpers";
+import { Role } from "@distributed/types/common";
 
 export const getHome = (_req: Request, resp: Response) => {
   return resp.json({ message: 'hello world!' })
@@ -26,7 +27,8 @@ export const getNodeInformation = (_req: Request, res: Response) => {
     nodeId: node.getNodeId(),
     leaderId: node.getLeaderId(),
     isElectionOnGoing: node.isElectionOnGoing(),
-    isLeader: node.isLeader()
+    isLeader: node.isLeader(),
+    role: node.getRole()
   })
 }
 
@@ -44,4 +46,14 @@ export const electNewLeader = (req: Request, res: Response) => {
   node.setLeaderId(leaderId);
   node.setElectionOnGoing(false);
   res.json({ message: 'LEADER_ELECTED' })
+}
+
+export const obtainNewRole = (req: Request, res: Response) => {
+  const { role } = req.body as { role: Role };
+  if (!role) {
+    res.status(400);
+    res.json({ message: 'INVALID_ROLE' })
+  }
+  node.setRole(role);
+  res.json({ role: node.getRole(), id: node.getNodeId() })
 }

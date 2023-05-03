@@ -8,17 +8,17 @@ import { PrimeProcess } from "@distributed/types/common";
  * @returns return prime response object.
  */
 export const isPrime = (
-  number: number,
+  numberToCheck: number,
   start: number,
   end: number
 ): PrimeProcess => {
   const payload = {
     end,
     start,
-    number
+    number: numberToCheck
   }
   for (let i = start; i <= end; i++) {
-    if (number % i === 0) {
+    if (numberToCheck % i === 0) {
       return {
         action: "non-prime",
         payload: {

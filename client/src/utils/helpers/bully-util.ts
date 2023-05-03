@@ -1,7 +1,8 @@
 import axios from "axios";
 import node from "@distributed/utils/node";
-import { ConnectedNode, NodeCheck, Message } from "@distributed/types/common";
+import { ConnectedNode, NodeCheck } from "@distributed/types/common";
 import { constructUrlToHit, getAllConnectedNodesFromRegistry } from "./common-util";
+import { Leader } from "./leader-util";
 
 export const areNodesReadyForElection = async (higherNodeChecks: ConnectedNode[]): Promise<NodeCheck[]> => {
   const promises = higherNodeChecks.map(async (higherNode) => {
@@ -52,6 +53,7 @@ export const startElection = async (currentNodeId: number) => {
     // do not start another election.
     return;
   }
+  // TODO: Flag on all nodes that election is on-going
   node.setElectionOnGoing(true); // began an election.
 
   const connectedNodes = getAllConnectedNodesFromRegistry();
@@ -63,6 +65,7 @@ export const startElection = async (currentNodeId: number) => {
     // make connected node the leader.
     await node.setLeaderId(currentNodeId, true);
     node.setElectionOnGoing(false);
+    await Leader.prepareRolesForNodes();
     return;
   }
 
@@ -73,6 +76,7 @@ export const startElection = async (currentNodeId: number) => {
     console.log('Leader Existing', isLeaderExisting.instanceId);
     node.setLeaderId(isLeaderExisting.instanceId)
     node.setElectionOnGoing(false);
+    await Leader.prepareRolesForNodes();
     return;
   }
 
@@ -90,6 +94,8 @@ export const startElection = async (currentNodeId: number) => {
     await axios.post(electionUrl, { invokeNodeId: currentNodeId })
   });
   await Promise.all(promises);
+  // this nodes job is done, no need to be in electing mode anymore. let the rest take it over.
+  node.setElectionOnGoing(false);
 }
 
 export const onConnectedToServer = async () => {

@@ -41,3 +41,16 @@ type NonPrimeResponse = {
 }
 
 export type PrimeProcess = PrimeResponse | NonPrimeResponse;
+
+export enum Role {
+  PROPOSER = 'proposer',
+  LEARNER = 'learner',
+  ACCEPTOR = 'acceptor'
+}
+
+export interface RoleNotification {
+  instanceId: number,
+  role: Role
+  connectingPort: number
+  connectingIp: string
+}
