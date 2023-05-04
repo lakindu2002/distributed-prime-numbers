@@ -7,7 +7,28 @@ This application utilizes distributed nodes to reach a concensus on a number bei
 A Service Registry has been used to help nodes find each other and communication efficiently. 
 
 
-Eureka (Spring Eureka) has been used as the service registry. The `service-registry` project contains the Eureka Server.
+## Server Registry
+
+The service registry that has been used is Consul.
+
+### Installation
+
+To install Consul, run the following commands:
+
+```bash
+brew tap hashicorp/tap
+brew install hashicorp/tap/consul
+```
+
+### Configuring Consul
+
+Open a terminal and launch a Consul agent. The agent is responsible for managing services. Run the command below
+
+```
+consul agent -dev
+```
+
+Next, visit this link to view the Consul UI - http://localhost:8500/ui
 
 
 
