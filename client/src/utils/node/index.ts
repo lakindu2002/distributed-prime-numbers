@@ -1,5 +1,6 @@
 import { Role } from "@distributed/types/common";
 import { broadcastMessage } from "@distributed/utils/helpers";
+import { Agent } from "../agent";
 
 export const createNodeId = (): number => {
   const MAX_BOUND = 500000;
@@ -51,6 +52,7 @@ export class Node {
   /**
    * sets the leader for the node.
    * when the leader is set the values `_isLeader`, `_isLeaderAvailable` gets updated
+   * when leader ID is set, the election is turned off.
    * @param value The leader id
    * @param announce Boolean to determine if the leader should be announced @default false
    */
@@ -66,6 +68,7 @@ export class Node {
         }
       });
     }
+    this.setElectionOnGoing(false);
   }
 
   setElectionOnGoing(value: boolean) {
@@ -78,6 +81,10 @@ export class Node {
 
   getRole() {
     return this.role;
+  }
+
+  isElectionReady() {
+    return !this.isElectionOnGoing() && !this.isLeader();
   }
 }
 

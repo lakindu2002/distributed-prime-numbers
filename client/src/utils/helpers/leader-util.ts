@@ -1,6 +1,6 @@
 import axios from "axios";
 import { Role, RoleNotification } from "@distributed/types/common";
-import { EurekaClient } from "@distributed/utils/eureka";
+import { Agent } from "@distributed/utils/agent";
 import node from "@distributed/utils/node";
 import { constructUrlToHit } from "./common-util";
 
@@ -12,13 +12,35 @@ export class Leader {
    * Always have 2 acceptors and 1 learner. The rest can be proposers solving the ranges.
    */
   static async prepareRolesForNodes() {
-    const activeAppsInRegistry = EurekaClient.getSingleton().getActiveInstances();
-    const acceptors = activeAppsInRegistry.filter((app) => app.metadata?.role === Role.ACCEPTOR);
-    const learners = activeAppsInRegistry.filter((app) => app.metadata?.role === Role.LEARNER);
-    const unknownNodes = activeAppsInRegistry.filter((app) => !node.isLeader() && app.metadata?.role !== Role.ACCEPTOR && app.metadata?.role !== Role.LEARNER && app.metadata?.role !== Role.PROPOSER);
+    console.log(`*********** PREPARING ROLES ***********`)
 
+    const activeAppsInRegistry = await Agent.getSingleton().getActiveInstances();
+    const acceptors = activeAppsInRegistry.filter((app) => app.Meta.role === Role.ACCEPTOR);
+    const learners = activeAppsInRegistry.filter((app) => app.Meta.role === Role.LEARNER);
+    const unknownNodes = activeAppsInRegistry.filter((app) => {
+      if (app.ID === node.getNodeId().toString()) {
+        // current app
+        if (node.isLeader()) {
+          // node is leader, dont add to scheduling
+          return false;
+        } else if (!app.Meta.role) {
+          // no role, add to scheduling
+          return true;
+        } else {
+          // dont add
+          return false
+        }
+      }
+      // if not current app, check if they have a role, return True for not having role.
+      return !app.Meta.role;
+    }
+    );
     const numAcceptors = acceptors.length;
     const numLearners = learners.length;
+
+    console.log(`*********** THERE ARE ${unknownNodes.length} NODES WITH NO ROLE ***********`)
+    console.log(`*********** THERE ARE ${acceptors.length} ACCEPTOR NODES ***********`)
+    console.log(`*********** THERE ARE ${learners.length} LEARNER NODES ***********`)
 
     let acceptorsToAdd = this.MAX_ACCEPTORS - numAcceptors;
     let learnersToAdd = this.MAX_LEARNERS - numLearners;
@@ -36,13 +58,15 @@ export class Leader {
         role = Role.LEARNER
         learnersToAdd--;
       }
+      console.log(`*********** DEFINING ROLE - ${role} ***********`)
       definedRoles.push({
-        instanceId: Number(unknownNode.instanceId),
+        instanceId: Number(unknownNode.ID),
         role,
-        connectingPort: Number((unknownNode.port as any).$),
-        connectingIp: unknownNode.ipAddr
+        connectingPort: unknownNode.Port,
+        connectingIp: unknownNode.Meta.ip
       });
     });
+    console.log(`*********** ROLES PREPARED ***********`)
     await this.notifyRoles(definedRoles);
   }
 
@@ -53,9 +77,9 @@ export class Leader {
    */
   private static async notifyRoles(nodesWithRoles: RoleNotification[]) {
     const promises = nodesWithRoles.map(async (nodeWithRole) => {
-      EurekaClient.getSingleton().updateInstance(nodeWithRole.instanceId, { role: nodeWithRole.role })
-      await axios.post(constructUrlToHit(nodeWithRole.connectingIp, nodeWithRole.connectingPort, '/alerts/role'), { role: nodeWithRole.role })
+      await axios.post(constructUrlToHit('localhost', nodeWithRole.connectingPort, '/alerts/role'), { role: nodeWithRole.role })
     });
     await Promise.all(promises);
+    console.log(`*********** ROLES NOTIFIED TO ALL NODES ***********`)
   }
 }

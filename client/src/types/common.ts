@@ -4,10 +4,14 @@ export interface ConnectedNode {
   port: number;
 }
 
-export interface NodeCheck {
-  instanceId: number,
+export interface NodeResponse {
+  port: number,
   isElectionReady: boolean
   isLeader: boolean,
+  ip: string
+  nodeId: number,
+  leaderId: number,
+  role: Role
 }
 
 type LeaderElectedMessage = {
@@ -53,4 +57,19 @@ export interface RoleNotification {
   role: Role
   connectingPort: number
   connectingIp: string
+}
+
+export interface ConsulInstance {
+  ID: string,
+  Service: string,
+  Tags: string[],
+  Meta: { [key: string]: any },
+  Port: number,
+  Address: string,
+  Weights: {
+    "Passing": number,
+    "Warning": number
+  },
+  EnableTagOverride: boolean,
+  Datacenter: string
 }

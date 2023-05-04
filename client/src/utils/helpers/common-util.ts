@@ -1,5 +1,5 @@
 import { ConnectedNode, Message } from "@distributed/types/common";
-import { EurekaClient } from "@distributed/utils/eureka";
+import { Agent } from "@distributed/utils/agent";
 import { notifyLeaderElected } from "./bully-util";
 
 export const constructUrlToHit = (ip: string, port: number, path: string) =>
@@ -9,14 +9,13 @@ export const constructUrlToHit = (ip: string, port: number, path: string) =>
  * Fetch all connected nodes in service regsitry in custom shape
  * @returns Connected Nodes.
  */
-export const getAllConnectedNodesFromRegistry = (): ConnectedNode[] => {
-  return EurekaClient.getSingleton()
-    .getInstances()
-    .map((higherNode) => ({
-      port: Number((higherNode.port as any).$),
-      ip: higherNode.ipAddr,
-      instanceId: Number(higherNode.instanceId),
-    }));
+export const getAllConnectedNodesFromRegistry = async (): Promise<ConnectedNode[]> => {
+  const instances = await Agent.getSingleton().getInstances();
+  return instances.map((connectedNode) => ({
+    port: connectedNode.Port,
+    ip: String(connectedNode.Meta.ip),
+    instanceId: Number(connectedNode.ID),
+  }));
 };
 
 /**
@@ -31,3 +30,12 @@ export const broadcastMessage = async ({ action, payload }: Message) => {
     }
   }
 };
+
+export const getRandomTimeout = () => {
+  // create a random time out period between 5 to 15 seconds to prevent all nodes from starting election at the same time.
+  const MAX_BOUND = 20;
+  const MIN_BOUND = 10;
+  const timeoutPeriod = (Math.floor(Math.random() * (MAX_BOUND - MIN_BOUND + 1)) + MIN_BOUND) * 1000;
+  console.log('TIMEOUT_PERIOD', timeoutPeriod);
+  return timeoutPeriod;
+}

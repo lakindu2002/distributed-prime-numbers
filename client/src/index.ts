@@ -1,4 +1,4 @@
-import { EurekaClient } from "@distributed/utils/eureka";
+import { Agent } from "@distributed/utils/agent";
 import cli from "@distributed/utils/cli";
 import api from '@distributed/server';
 import node from '@distributed/utils/node';
@@ -9,25 +9,21 @@ const port = cli.getPortNumber();
 
 api.startServer(port);
 
-const eurekaClient = EurekaClient.getSingleton({
-  appName: process.env.APP_NAME,
+const agent = Agent.getSingleton({
   hostName: cli.getHostName(),
   ipAddr: "127.0.0.1",
   port,
   instanceId: node.getNodeId().toString()
 });
 
-eurekaClient.connectWithServer();
+agent.connectWithServer();
 
-function exitHandler(options: any) {
+async function exitHandler(options: any) {
   if (options.exit) {
-    eurekaClient.disconnectFromServer();
+    await agent.disconnectFromServer();
+    process.exit(0);
   }
 }
 
 // deregistered listener
-(eurekaClient.getClient() as any).on("deregistered", () => {
-  process.exit();
-});
-
 process.on("SIGINT", exitHandler.bind(null, { exit: true }));

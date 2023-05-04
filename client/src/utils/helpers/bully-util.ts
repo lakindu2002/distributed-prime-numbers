@@ -1,13 +1,14 @@
 import axios from "axios";
 import node from "@distributed/utils/node";
-import { ConnectedNode, NodeCheck } from "@distributed/types/common";
-import { constructUrlToHit, getAllConnectedNodesFromRegistry } from "./common-util";
+import { ConnectedNode, NodeResponse } from "@distributed/types/common";
+import { constructUrlToHit, getAllConnectedNodesFromRegistry, getRandomTimeout } from "./common-util";
 import { Leader } from "./leader-util";
+import { Agent } from "../agent";
 
-export const areNodesReadyForElection = async (higherNodeChecks: ConnectedNode[]): Promise<NodeCheck[]> => {
-  const promises = higherNodeChecks.map(async (higherNode) => {
-    const resp = await axios.get<NodeCheck>(constructUrlToHit(higherNode.ip, higherNode.port, '/election/ready'))
-    return resp.data;
+export const getNodesInformation = async (nodes: ConnectedNode[]): Promise<NodeResponse[]> => {
+  const promises = nodes.map(async (eachNode) => {
+    const resp = await axios.get<Partial<NodeResponse>>(constructUrlToHit('localhost', eachNode.port, '/information'))
+    return { ...resp.data, ip: eachNode.ip } as NodeResponse;
   })
   const responses = await Promise.all(promises);
   return responses;
@@ -15,22 +16,14 @@ export const areNodesReadyForElection = async (higherNodeChecks: ConnectedNode[]
 
 /**
  * Filter nodes based on a condition
- * @param connectedNodes the connected nodes in the service registry
+ * @param connectedNodes the connected nodes information from APIs.
  * @param currentNodeId the instance id of the current node
  * @returns all nodes that have higher instance id than connected node.
  */
-const getHigherNodesFromRegistry = (connectedNodes: ConnectedNode[], currentNodeId: number) => {
-  return connectedNodes.filter((connectedNode) => connectedNode.instanceId > currentNodeId);
-};
-
-/**
- * Talks with all other nodes and gets their information
- * @param higherNodes The nodes that have a higher instance ID than current node.
- * @returns The node information.
- */
-const getAllHigherNodeInformation = async (higherNodes: ConnectedNode[]): Promise<NodeCheck[]> => {
-  const checks = await areNodesReadyForElection(higherNodes);
-  return checks;
+const filterOutHigherNodes = (connectedNodes: NodeResponse[], currentNodeId: number) => {
+  return connectedNodes.filter((connectedNode) => {
+    return connectedNode.nodeId > currentNodeId;
+  });
 };
 
 /**
@@ -38,69 +31,85 @@ const getAllHigherNodeInformation = async (higherNodes: ConnectedNode[]): Promis
  * This will be determined by two aspects.
  *    - If there is already a leader, it is not ready.
  *    - If the election is ongoing, it is not ready to start a new election.
- * @param higherNodes The nodes that have a higher instance ID than current node.
+ * @param nodes The nodes that have a higher instance ID than current node.
  * @returns boolean to check if election can be started.
  */
-const isReadyForElection = (higherNodes: NodeCheck[]): boolean => {
-  return higherNodes.some((higherNode) => higherNode.isElectionReady);
+const isReadyForElection = (nodes: NodeResponse[]): boolean => {
+  return nodes.some((eachNode) => eachNode.isElectionReady);
 };
 
+const getNodes = async (): Promise<NodeResponse[]> => {
+  const connectedNodes = await getAllConnectedNodesFromRegistry();
+  const nodeInformationWithoutCurrentNode = connectedNodes.filter((connectedNode) => connectedNode.instanceId !== node.getNodeId())
+  const connectedNodesInformation = await getNodesInformation(nodeInformationWithoutCurrentNode);
+  return [
+    ...connectedNodesInformation,
+    {
+      ip: Agent.getSingleton().getIp(),
+      isElectionReady: node.isElectionReady(),
+      isLeader: node.isLeader(),
+      leaderId: node.getLeaderId(),
+      nodeId: node.getNodeId(),
+      port: Agent.getSingleton().getPort(),
+      role: node.getRole(),
+    }
+  ];
+}
 
-export const startElection = async (currentNodeId: number) => {
-  if (node.isElectionOnGoing()) {
-    console.log('Found ongoing election, hence stopping.')
-    // election is on going.
-    // do not start another election.
+
+export const startElection = async (nodeId: number) => {
+  const nodes = await getNodes();
+  const leader = nodes.find((connectedNode) => connectedNode.isLeader);
+
+  if (leader) {
+    // existing leader, don't start any election
+    console.log(`*********** EXISTING LEADER PRESENT - ${leader.nodeId} ***********`)
+    node.setLeaderId(leader.nodeId);
     return;
   }
-  // TODO: Flag on all nodes that election is on-going
-  node.setElectionOnGoing(true); // began an election.
 
-  const connectedNodes = getAllConnectedNodesFromRegistry();
-  const higherNodes = getHigherNodesFromRegistry(connectedNodes, currentNodeId);
+  const electionReady = isReadyForElection(nodes);
+
+  if (!electionReady) {
+    console.log('*********** NOT READY FOR ELECTION ***********')
+    return;
+  }
+  console.log('*********** STARTING A NEW ELECTION ***********')
+  node.setElectionOnGoing(true); // begin an election.
+  const higherNodes = filterOutHigherNodes(nodes, nodeId);
 
   if (higherNodes.length === 0) {
-    console.log(`No higher node, making current node - ${currentNodeId} as leader.`)
+    console.log(`*********** NO NODES HIGHER THAN NODE - ${nodeId}. MAKING - ${nodeId} THE LEADER ***********`)
     // no more nodes higher than connected node.
-    // make connected node the leader.
-    await node.setLeaderId(currentNodeId, true);
-    node.setElectionOnGoing(false);
+    // make the passed node ID as the leader.
+    await node.setLeaderId(nodeId, true);
     await Leader.prepareRolesForNodes();
-    return;
+  } else {
+    // there are higher nodes, let them take over.
+    console.log(`*********** HAVE ${higherNodes.length} NODES WITH HIGHER ID THAN ${nodeId} ***********`)
+    const promises = higherNodes.map(async (electingNode) => {
+      const electionUrl = constructUrlToHit('localhost', electingNode.port, '/election');
+      await axios.post(electionUrl, { invokeNodeId: nodeId })
+      console.log(`*********** HANDING ELECTION OVER TO: ${nodeId} ***********`)
+    });
+    await Promise.all(promises);
   }
-
-  const checkingHigherNodes = await getAllHigherNodeInformation(higherNodes);
-  const isLeaderExisting = checkingHigherNodes.find((checkingNode) => checkingNode.isLeader);
-
-  if (isLeaderExisting) {
-    console.log('Leader Existing', isLeaderExisting.instanceId);
-    node.setLeaderId(isLeaderExisting.instanceId)
-    node.setElectionOnGoing(false);
-    await Leader.prepareRolesForNodes();
-    return;
-  }
-
-  // check if election can be done
-  const isElectionAllowed = isReadyForElection(checkingHigherNodes);
-
-  if (!isElectionAllowed) {
-    node.setElectionOnGoing(false);
-    // no election, either there is a leader, or there is an ongoing election, so don't start up a new election.
-    return;
-  }
-
-  const promises = higherNodes.map(async (electingNode) => {
-    const electionUrl = constructUrlToHit(electingNode.ip, electingNode.port, '/election');
-    await axios.post(electionUrl, { invokeNodeId: currentNodeId })
-  });
-  await Promise.all(promises);
-  // this nodes job is done, no need to be in electing mode anymore. let the rest take it over.
-  node.setElectionOnGoing(false);
 }
 
 export const onConnectedToServer = async () => {
   const nodeId = node.getNodeId();
-  await startElection(nodeId)
+  const nodes = await getNodes();
+  const leader = nodes.find((eachNode) => eachNode.isLeader);
+
+  if (leader) {
+    // leader is existing
+    node.setLeaderId(leader.nodeId);
+  } else {
+    // no leader, wait for a few and then start election
+    setTimeout(async () => {
+      await startElection(nodeId);
+    }, getRandomTimeout())
+  }
 };
 
 /**
@@ -108,14 +117,14 @@ export const onConnectedToServer = async () => {
  * @param leaderId the leader of the system
  */
 export const notifyLeaderElected = async (leaderId: number) => {
-  const connectedNodes = getAllConnectedNodesFromRegistry();
+  const connectedNodes = await getAllConnectedNodesFromRegistry();
   const requests = connectedNodes.map(async (connectedNode) => {
-    const url = constructUrlToHit(connectedNode.ip, connectedNode.port, '/election/completed')
+    const url = constructUrlToHit('localhost', connectedNode.port, '/election/completed')
     const payload = {
       leaderId
     }
     await axios.post(url, payload);
   })
   await Promise.all(requests);
-  console.log(`Elected - ${leaderId} as the leader in the system.`)
+  console.log(`*********** ELECTED - ${leaderId} AS THE LEADER IN THIS SYSTEM. ***********`)
 }
