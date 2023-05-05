@@ -10,6 +10,24 @@ type AgentCreate = {
   instanceId: string;
 };
 
+const getConsulPayload = ({ appName, instanceId, port, ip, customMeta }: { appName: string, instanceId: string, port: number, ip: string, customMeta?: any }) => ({
+  Name: appName,
+  ID: instanceId,
+  Port: port,
+  Meta: {
+    ip,
+    ...customMeta
+  },
+  Checks: [
+    {
+      Name: `Check Counter health ${port}`,
+      TCP: `${ip}: ${port}`,
+      Interval: "10s",
+      Timeout: "5s"
+    }
+  ]
+})
+
 export class Agent {
   private port: number;
 
@@ -40,22 +58,7 @@ export class Agent {
   }
 
   connectWithServer() {
-    const registerPayload = {
-      Name: process.env.APP_NAME,
-      ID: this.instanceId,
-      Port: this.port,
-      Meta: {
-        ip: this.ipAddr
-      },
-      Checks: [
-        {
-          Name: `Check Counter health ${this.port}`,
-          TCP: `${this.ipAddr}: ${this.port}`,
-          Interval: "10s",
-          Timeout: "5s"
-        }
-      ]
-    }
+    const registerPayload = getConsulPayload({ appName: process.env.APP_NAME, instanceId: this.instanceId, port: this.port, ip: this.ipAddr });
     axios.put(constructUrlToHit(process.env.CONSUL_HOST, Number(process.env.CONSUL_PORT), '/v1/agent/service/register'), registerPayload).then(() => {
       Logger.log(`Node ${this.hostName} | ${this.instanceId} Registered on Port ${this.port} with Consul`);
       onConnectedToServer();
@@ -74,7 +77,6 @@ export class Agent {
     const url = constructUrlToHit(process.env.CONSUL_HOST, Number(process.env.CONSUL_PORT), '/v1/agent/services')
     const resp = await axios.get<{ [instanceId: string]: ConsulInstance }>(url);
     const instances = Object.values(resp.data);
-    Logger.log(`NUMBER OF INSTANCES - ${instances.length}`)
     return instances;
   }
 
@@ -85,6 +87,26 @@ export class Agent {
     } catch (err) {
       return err.response?.data?.AggregatedStatus || 'critical';
     }
+  }
+
+
+  async updateInstanceMeta(instanceId: string, meta: { [key: string]: any }) {
+    const instances = await this.getInstances();
+    const instanceToUpdate = instances.find((instance) => instance.ID === instanceId);
+    if (!instanceToUpdate) {
+      Logger.log('NO INSTANCE FOUND ON REGISTRY TO UPDATE')
+      return;
+    }
+    const newPayload = getConsulPayload({
+      appName: String(process.env.APP_NAME),
+      port: instanceToUpdate.Port,
+      ip: instanceToUpdate.Meta.ip as string,
+      instanceId: instanceToUpdate.ID,
+      customMeta: {
+        ...meta,
+      }
+    })
+    await axios.put(constructUrlToHit(process.env.CONSUL_HOST, Number(process.env.CONSUL_PORT), '/v1/agent/service/register'), newPayload);
   }
 
   async getActiveInstances() {

@@ -49,3 +49,15 @@ export const obtainNewRole = (req: Request, res: Response) => {
   node.setRole(role);
   res.json({ role: node.getRole(), id: node.getNodeId() })
 }
+
+export const processProposerAction = (req: Request, res: Response) => {
+  res.json({ message: 'ACCEPTED' })
+}
+
+export const processLearnerAction = (req: Request, res: Response) => {
+  res.json({ message: 'ACCEPTED' })
+}
+
+export const processAcceptorAction = (req: Request, res: Response) => {
+  res.json({ message: 'ACCEPTED' })
+}

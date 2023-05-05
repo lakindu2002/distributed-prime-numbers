@@ -75,6 +75,9 @@ export class Node {
   async pingLeader() {
     const duration = getRandomTimeDuration(60, 40)
     Logger.log(`CREATING A PING FOR THE LEADER OF ${duration} SECONDS`)
+    if (this.pingInterval) {
+      this.removePing();
+    }
     this.pingInterval = setInterval(async () => {
       if (!this.leaderId) {
         Logger.log('NO LEADER YET, EXITING FROM PING')
