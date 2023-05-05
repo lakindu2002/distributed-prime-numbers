@@ -25,6 +25,7 @@ export const isPrime = (
           ...payload,
           isPrime: false,
           divisibleBy: i,
+          message: 'Number is not prime'
         },
       };
     }
@@ -34,6 +35,7 @@ export const isPrime = (
     payload: {
       ...payload,
       isPrime: true,
+      message: 'Number is prime'
     },
   };
 };

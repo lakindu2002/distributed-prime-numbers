@@ -30,6 +30,7 @@ type PrimeResponse = {
     isPrime: boolean,
     start: number,
     end: number
+    message: string
   }
 }
 
@@ -41,7 +42,14 @@ type NonPrimeResponse = {
     start: number,
     end: number,
     divisibleBy: number
+    message: string
   }
+}
+
+export type LearnerResponse = {
+  checkedNumber: number
+  isPrime: boolean
+  checkedBy: number
 }
 
 export type PrimeProcess = PrimeResponse | NonPrimeResponse;

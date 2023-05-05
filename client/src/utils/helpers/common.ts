@@ -1,11 +1,10 @@
-import { ConnectedNode, Message, NodeResponse } from "@distributed/types/common";
+import { ConnectedNode, Message, NodeResponse, Role } from "@distributed/types/common";
 import { Agent } from "@distributed/utils/agent";
-import { notifyLeaderElected } from "./bully-util";
+import { notifyLeaderElected } from "./leader-election/bully";
 import { Logger } from "./logger";
 import axios from "axios";
 
-export const constructUrlToHit = (ip: string, port: number, path: string) =>
-  `http://${ip}:${port}${path}`;
+export const constructUrlToHit = (ip: string, port: number, path: string) => `http://${ip}:${port}${path}`;
 
 /**
  * Fetch all connected nodes in service regsitry in custom shape
@@ -63,3 +62,24 @@ export const getNodes = async (): Promise<NodeResponse[]> => {
   return connectedNodesInformation;
 }
 
+export const getAllAcceptors = async () => {
+  const nodes = await Agent.getSingleton().getActiveInstances();
+  return nodes.filter((app) => app.Meta.role === Role.ACCEPTOR);
+};
+
+export const getLearner = async () => {
+  const nodes = await Agent.getSingleton().getActiveInstances();
+  const learners = nodes.filter((app) => app.Meta.role === Role.LEARNER); // only one learner will be in the system
+  if (learners.length !== 1) {
+    throw new Error('Learner count is not 1');
+  }
+  return learners[0];
+};
+
+export const getProposers = async () => {
+  const nodes = await Agent.getSingleton().getActiveInstances();
+  const proposers = nodes.filter((app) => app.Meta.role === Role.PROPOSER);
+  return proposers;
+};
+
+export const getRandomNumber = (MAX_BOUND: number, MIN_BOUND: number) => Math.floor(Math.random() * (MAX_BOUND - MIN_BOUND + 1)) + MIN_BOUND
