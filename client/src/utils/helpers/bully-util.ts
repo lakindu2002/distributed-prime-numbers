@@ -1,18 +1,9 @@
 import axios from "axios";
 import node from "@distributed/utils/node";
-import { ConnectedNode, NodeResponse } from "@distributed/types/common";
-import { constructUrlToHit, getAllConnectedNodesFromRegistry, getRandomTimeout } from "./common-util";
+import { NodeResponse } from "@distributed/types/common";
+import { constructUrlToHit, getAllConnectedNodesFromRegistry, getNodes, getRandomTimeDuration } from "./common-util";
 import { Leader } from "./leader-util";
-import { Agent } from "../agent";
-
-export const getNodesInformation = async (nodes: ConnectedNode[]): Promise<NodeResponse[]> => {
-  const promises = nodes.map(async (eachNode) => {
-    const resp = await axios.get<Partial<NodeResponse>>(constructUrlToHit('localhost', eachNode.port, '/information'))
-    return { ...resp.data, ip: eachNode.ip } as NodeResponse;
-  })
-  const responses = await Promise.all(promises);
-  return responses;
-};
+import { Logger } from "./logger";
 
 /**
  * Filter nodes based on a condition
@@ -38,32 +29,13 @@ const isReadyForElection = (nodes: NodeResponse[]): boolean => {
   return nodes.some((eachNode) => eachNode.isElectionReady);
 };
 
-const getNodes = async (): Promise<NodeResponse[]> => {
-  const connectedNodes = await getAllConnectedNodesFromRegistry();
-  const nodeInformationWithoutCurrentNode = connectedNodes.filter((connectedNode) => connectedNode.instanceId !== node.getNodeId())
-  const connectedNodesInformation = await getNodesInformation(nodeInformationWithoutCurrentNode);
-  return [
-    ...connectedNodesInformation,
-    {
-      ip: Agent.getSingleton().getIp(),
-      isElectionReady: node.isElectionReady(),
-      isLeader: node.isLeader(),
-      leaderId: node.getLeaderId(),
-      nodeId: node.getNodeId(),
-      port: Agent.getSingleton().getPort(),
-      role: node.getRole(),
-    }
-  ];
-}
-
-
 export const startElection = async (nodeId: number) => {
   const nodes = await getNodes();
   const leader = nodes.find((connectedNode) => connectedNode.isLeader);
 
   if (leader) {
     // existing leader, don't start any election
-    console.log(`*********** EXISTING LEADER PRESENT - ${leader.nodeId} ***********`)
+    Logger.log(`EXISTING LEADER PRESENT - ${leader.nodeId}`)
     node.setLeaderId(leader.nodeId);
     return;
   }
@@ -71,26 +43,26 @@ export const startElection = async (nodeId: number) => {
   const electionReady = isReadyForElection(nodes);
 
   if (!electionReady) {
-    console.log('*********** NOT READY FOR ELECTION ***********')
+    Logger.log('NOT READY FOR ELECTION')
     return;
   }
-  console.log('*********** STARTING A NEW ELECTION ***********')
+  Logger.log('STARTING A NEW ELECTION')
   node.setElectionOnGoing(true); // begin an election.
   const higherNodes = filterOutHigherNodes(nodes, nodeId);
 
   if (higherNodes.length === 0) {
-    console.log(`*********** NO NODES HIGHER THAN NODE - ${nodeId}. MAKING - ${nodeId} THE LEADER ***********`)
+    Logger.log(`NO NODES HIGHER THAN NODE - ${nodeId}. MAKING - ${nodeId} THE LEADER`)
     // no more nodes higher than connected node.
     // make the passed node ID as the leader.
     await node.setLeaderId(nodeId, true);
     await Leader.prepareRolesForNodes();
   } else {
     // there are higher nodes, let them take over.
-    console.log(`*********** HAVE ${higherNodes.length} NODES WITH HIGHER ID THAN ${nodeId} ***********`)
+    Logger.log(`HAVE ${higherNodes.length} NODES WITH HIGHER ID THAN ${nodeId}`)
     const promises = higherNodes.map(async (electingNode) => {
       const electionUrl = constructUrlToHit('localhost', electingNode.port, '/election');
       await axios.post(electionUrl, { invokeNodeId: nodeId })
-      console.log(`*********** HANDING ELECTION OVER TO: ${nodeId} ***********`)
+      Logger.log(`HANDING ELECTION OVER TO: ${nodeId}`)
     });
     await Promise.all(promises);
   }
@@ -108,7 +80,7 @@ export const onConnectedToServer = async () => {
     // no leader, wait for a few and then start election
     setTimeout(async () => {
       await startElection(nodeId);
-    }, getRandomTimeout())
+    }, getRandomTimeDuration())
   }
 };
 
@@ -126,5 +98,5 @@ export const notifyLeaderElected = async (leaderId: number) => {
     await axios.post(url, payload);
   })
   await Promise.all(requests);
-  console.log(`*********** ELECTED - ${leaderId} AS THE LEADER IN THIS SYSTEM. ***********`)
+  Logger.log(`ELECTED - ${leaderId} AS THE LEADER IN THIS SYSTEM`)
 }

@@ -1,5 +1,6 @@
 import express from "express";
 import routes from "./routes";
+import { Logger } from "./utils/helpers";
 
 export class Server {
   private server;
@@ -25,7 +26,7 @@ export class Server {
   startServer(port: number) {
     // start the Express server
     this.server.listen(port, () => {
-      console.log(`server started at http://localhost:${port}`);
+      Logger.log(`server started at http://localhost:${port}`);
     });
   }
 }

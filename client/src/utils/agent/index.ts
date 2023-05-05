@@ -1,6 +1,7 @@
 import { ConsulInstance } from "@distributed/types/common";
-import { constructUrlToHit, onConnectedToServer } from "@distributed/utils/helpers";
+import { Logger, constructUrlToHit, onConnectedToServer } from "@distributed/utils/helpers";
 import axios from "axios";
+import node from "@distributed/utils/node";
 
 type AgentCreate = {
   port: number;
@@ -56,30 +57,41 @@ export class Agent {
       ]
     }
     axios.put(constructUrlToHit(process.env.CONSUL_HOST, Number(process.env.CONSUL_PORT), '/v1/agent/service/register'), registerPayload).then(() => {
-      console.log(`Node ${this.hostName} | ${this.instanceId} Registered on Port ${this.port} with Consul`);
+      Logger.log(`Node ${this.hostName} | ${this.instanceId} Registered on Port ${this.port} with Consul`);
       onConnectedToServer();
+      node.pingLeader();
     }).catch((err) => {
-      console.log('Failed to register with Consul', err.message);
+      Logger.log(`Failed to register with Consul - ${err.message}`);
     })
   }
 
   async disconnectFromServer() {
     await axios.put(constructUrlToHit(process.env.CONSUL_HOST, Number(process.env.CONSUL_PORT), `/v1/agent/service/deregister/${this.instanceId}`))
+    node.removePing();
   }
 
   async getInstances(): Promise<ConsulInstance[]> {
     const url = constructUrlToHit(process.env.CONSUL_HOST, Number(process.env.CONSUL_PORT), '/v1/agent/services')
     const resp = await axios.get<{ [instanceId: string]: ConsulInstance }>(url);
     const instances = Object.values(resp.data);
-    console.log(`*********** NUMBER OF INSTANCES - ${instances.length} ***********`)
+    Logger.log(`NUMBER OF INSTANCES - ${instances.length}`)
     return instances;
+  }
+
+  async getInstanceHealth(instanceId: string) {
+    try {
+      const resp = await axios.get(constructUrlToHit(process.env.CONSUL_HOST, Number(process.env.CONSUL_PORT), `/v1/agent/health/service/id/${instanceId}`));
+      return resp.data.AggregatedStatus;
+    } catch (err) {
+      return err.response?.data?.AggregatedStatus || 'critical';
+    }
   }
 
   async getActiveInstances() {
     const instances = await this.getInstances();
     const promises = instances.map(async (instance) => {
-      const resp = await axios.get(constructUrlToHit(process.env.CONSUL_HOST, Number(process.env.CONSUL_PORT), `/v1/agent/health/service/id/${instance.ID}`));
-      if (resp.data.AggregatedStatus === 'critical') {
+      const health = await this.getInstanceHealth(instance.ID);
+      if (health === 'critical') {
         // service is down
         return undefined;
       }
@@ -87,7 +99,7 @@ export class Agent {
       return instance;
     })
     const activeInstances = (await Promise.all(promises)).filter((instance) => !!instance);
-    console.log(`*********** NUMBER OF ACTIVE INSTANCES - ${activeInstances.length} ***********`)
+    Logger.log(`NUMBER OF ACTIVE INSTANCES - ${activeInstances.length}`)
     return activeInstances;
   }
 

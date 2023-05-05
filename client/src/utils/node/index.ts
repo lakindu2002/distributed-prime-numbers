@@ -1,5 +1,5 @@
 import { Role } from "@distributed/types/common";
-import { broadcastMessage } from "@distributed/utils/helpers";
+import { Logger, broadcastMessage, getRandomTimeDuration, startElection } from "@distributed/utils/helpers";
 import { Agent } from "../agent";
 
 export const createNodeId = (): number => {
@@ -20,6 +20,7 @@ export class Node {
   private _isLeader: boolean;
   private _isLeaderAvailable: boolean;
   private _isElectionOnGoing: boolean;
+  private pingInterval: NodeJS.Timer;
 
   constructor() {
     this.nodeId = createNodeId();
@@ -69,6 +70,30 @@ export class Node {
       });
     }
     this.setElectionOnGoing(false);
+  }
+
+  async pingLeader() {
+    const duration = getRandomTimeDuration(60, 40)
+    Logger.log(`CREATING A PING FOR THE LEADER OF ${duration} SECONDS`)
+    this.pingInterval = setInterval(async () => {
+      if (!this.leaderId) {
+        Logger.log('NO LEADER YET, EXITING FROM PING')
+        return;
+      }
+      Logger.log(`CHECKING LEADER HEALTH - ${this.leaderId}`)
+      const health = await Agent.getSingleton().getInstanceHealth(this.leaderId.toString());
+      if (health === 'critical') {
+        Logger.log(`LEADER DEAD - ${this.leaderId}`)
+        // health is bad, need a new leader, lets check from current one and see.
+        startElection(this.nodeId);
+        return;
+      }
+      Logger.log('LEADER ALIVE')
+    }, duration);
+  }
+
+  async removePing() {
+    clearInterval(this.pingInterval);
   }
 
   setElectionOnGoing(value: boolean) {

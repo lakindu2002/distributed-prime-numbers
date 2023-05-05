@@ -31,6 +31,7 @@ export const processElectionRequest = async (req: Request, res: Response) => {
     res.json({ message: 'INVALID_NODE_ID' });
   }
   await startElection(node.getNodeId());
+  res.json({ message: 'ACCEPTED' });
 }
 
 export const electNewLeader = (req: Request, res: Response) => {

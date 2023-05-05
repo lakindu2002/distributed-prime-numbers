@@ -1,8 +1,7 @@
 import axios from "axios";
 import { Role, RoleNotification } from "@distributed/types/common";
-import { Agent } from "@distributed/utils/agent";
-import node from "@distributed/utils/node";
-import { constructUrlToHit } from "./common-util";
+import { constructUrlToHit, getNodes } from "./common-util";
+import { Logger } from "./logger";
 
 export class Leader {
   private static MAX_ACCEPTORS: number = 2;
@@ -12,35 +11,18 @@ export class Leader {
    * Always have 2 acceptors and 1 learner. The rest can be proposers solving the ranges.
    */
   static async prepareRolesForNodes() {
-    console.log(`*********** PREPARING ROLES ***********`)
+    Logger.log(`PREPARING ROLES`)
 
-    const activeAppsInRegistry = await Agent.getSingleton().getActiveInstances();
-    const acceptors = activeAppsInRegistry.filter((app) => app.Meta.role === Role.ACCEPTOR);
-    const learners = activeAppsInRegistry.filter((app) => app.Meta.role === Role.LEARNER);
-    const unknownNodes = activeAppsInRegistry.filter((app) => {
-      if (app.ID === node.getNodeId().toString()) {
-        // current app
-        if (node.isLeader()) {
-          // node is leader, dont add to scheduling
-          return false;
-        } else if (!app.Meta.role) {
-          // no role, add to scheduling
-          return true;
-        } else {
-          // dont add
-          return false
-        }
-      }
-      // if not current app, check if they have a role, return True for not having role.
-      return !app.Meta.role;
-    }
-    );
+    const nodes = await getNodes();
+    const acceptors = nodes.filter((app) => app.role === Role.ACCEPTOR);
+    const learners = nodes.filter((app) => app.role === Role.LEARNER);
+    const unknownNodes = nodes.filter((app) => !app.role);
     const numAcceptors = acceptors.length;
     const numLearners = learners.length;
 
-    console.log(`*********** THERE ARE ${unknownNodes.length} NODES WITH NO ROLE ***********`)
-    console.log(`*********** THERE ARE ${acceptors.length} ACCEPTOR NODES ***********`)
-    console.log(`*********** THERE ARE ${learners.length} LEARNER NODES ***********`)
+    Logger.log(`THERE ARE ${unknownNodes.length} NODES WITH NO ROLE`)
+    Logger.log(`THERE ARE ${acceptors.length} ACCEPTOR NODES`)
+    Logger.log(`THERE ARE ${learners.length} LEARNER NODES`)
 
     let acceptorsToAdd = this.MAX_ACCEPTORS - numAcceptors;
     let learnersToAdd = this.MAX_LEARNERS - numLearners;
@@ -58,15 +40,17 @@ export class Leader {
         role = Role.LEARNER
         learnersToAdd--;
       }
-      console.log(`*********** DEFINING ROLE - ${role} ***********`)
+      Logger.log(`DEFINING ROLE FOR ${unknownNode.nodeId}: ${role}`)
+
       definedRoles.push({
-        instanceId: Number(unknownNode.ID),
+        instanceId: Number(unknownNode.nodeId),
         role,
-        connectingPort: unknownNode.Port,
-        connectingIp: unknownNode.Meta.ip
+        connectingPort: unknownNode.port,
+        connectingIp: unknownNode.ip
       });
+
     });
-    console.log(`*********** ROLES PREPARED ***********`)
+    Logger.log(`ROLES PREPARED`)
     await this.notifyRoles(definedRoles);
   }
 
@@ -80,6 +64,6 @@ export class Leader {
       await axios.post(constructUrlToHit('localhost', nodeWithRole.connectingPort, '/alerts/role'), { role: nodeWithRole.role })
     });
     await Promise.all(promises);
-    console.log(`*********** ROLES NOTIFIED TO ALL NODES ***********`)
+    Logger.log(`ROLES NOTIFIED TO ALL NODES`)
   }
 }
