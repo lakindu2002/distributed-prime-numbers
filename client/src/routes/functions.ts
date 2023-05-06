@@ -41,6 +41,7 @@ export const processElectionRequest = async (req: Request, res: Response) => {
 export const electNewLeader = (req: Request, res: Response) => {
   const { leaderId } = req.body;
   node.setLeaderId(leaderId);
+  Logger.log(`LEADER CONFIGURED IN NODE - ${node.getLeaderId()}`)
   res.json({ message: 'LEADER_ELECTED' })
 }
 
@@ -51,6 +52,7 @@ export const obtainNewRole = (req: Request, res: Response) => {
     res.json({ message: 'INVALID_ROLE' })
   }
   node.setRole(role);
+  Logger.log(`ROLE DETERMINED, I AM A ${node.getRole()}`)
   res.json({ role: node.getRole(), id: node.getNodeId() })
 }
 
@@ -93,7 +95,9 @@ export const registerProposerCount = async (req: Request, res: Response) => {
 
 export const deduceConsensus = async (req: Request, res: Response) => {
   const { consensus } = req.body as { consensus: Consensus };
-  Logger.log(`CONSENSUS SENT TO LEADER - NUMBER: ${consensus.number} IS ${consensus.isPrime ? 'PRIME' : 'NON-PRIME'}`);
+  Logger.log(`CONSENSUS RECIEVED BY LEADER - NUMBER: ${consensus.number} IS ${consensus.isPrime ? 'PRIME' : 'NON-PRIME'}`);
+  await Leader.storeConsensus(consensus);
+  await Leader.prepareRolesForNodes();
   await Leader.sendNumberWithSchedulingToProposers();
   res.json({ message: 'ACCEPTED' })
 }

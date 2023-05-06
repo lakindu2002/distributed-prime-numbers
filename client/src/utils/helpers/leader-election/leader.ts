@@ -1,15 +1,15 @@
 import axios from "axios";
-import { ConsulInstance, PrimeCheckRequest, Role, RoleNotification } from "@distributed/types/common";
+import { Consensus, ConsulInstance, PrimeCheckRequest, Role, RoleNotification } from "@distributed/types/common";
 import { constructUrlToHit, getLearner, getProposers } from "@distributed/utils/helpers/common";
 import { Logger } from "@distributed/utils/helpers/logger";
 import { Agent } from "@distributed/utils/agent";
-import { readTextFile } from "@distributed/utils/helpers/load-file";
+import { appendToFile, readTextFile } from "@distributed/utils/helpers/file-util";
 
 export class Leader {
   private static MAX_ACCEPTORS: number = 2;
   private static MAX_LEARNERS: number = 1;
 
-  private static numbersToCheck: number[];
+  private static numbersToCheck: number[] = [];
 
   /**
    * the current number position that is being processed in the system
@@ -66,6 +66,7 @@ export class Leader {
     });
     Logger.log(`ROLES PREPARED`)
     await this.notifyRoles(definedRoles);
+    await Leader.informLearner(); // inform learners how many proposers are in the schedule.
   }
 
   /**
@@ -80,14 +81,12 @@ export class Leader {
     });
     await Promise.all(promises);
     Logger.log(`ROLES NOTIFIED TO ALL NODES`)
-    await this.informLearner();
-    await this.sendNumberWithSchedulingToProposers(); // begin initial scheduling after informing roles
   }
 
   /**
    * Leader will inform the learner the number of proposers there are, so that the learner can terminate the algorithm.
    */
-  private static async informLearner() {
+  static async informLearner() {
     const [learner, proposers] = await Promise.all([getLearner(), getProposers()])
     const url = constructUrlToHit(learner.Meta.ip, learner.Port, '/alerts/learner/proposer-count');
     await axios.post(url, { proposerCount: proposers.length })
@@ -95,18 +94,18 @@ export class Leader {
   }
 
   /**
-   * Method will get the number from the list to check if its prime or not. 
+   * Method will get the number from the list to check if its prime or not.
    * @returns number - if there is a number | undefined is there is no next number.
    */
   private static getNextNumber(): number | undefined {
     if (this.numbersToCheck.length === 0) {
       // no data, load from file
-      const fileInfo = readTextFile('../../../files/numbers.txt');
+      const fileInfo = readTextFile(`${require.main.filename.split('src')[0]}/files/numbers.txt`);
       this.numbersToCheck = fileInfo.split('\n').map(Number);
     }
-    const number = this.numbersToCheck[this.currentCheckingNumberIndex];
+    const nextNumber = this.numbersToCheck[this.currentCheckingNumberIndex];
     this.currentCheckingNumberIndex++;
-    return number;
+    return nextNumber;
   }
 
   /**
@@ -126,6 +125,11 @@ export class Leader {
   private static async deletegateWorkToProposer(checkWork: PrimeCheckRequest, proposer: ConsulInstance) {
     const url = constructUrlToHit(proposer.Meta.ip, proposer.Port, '/actions/proposer/checks/prime');
     await axios.post(url, checkWork);
+    Logger.log(`WORK HAS BEEN SCHEDULED TO PROPOSER - ${proposer.ID} | NUMBER - ${checkWork.check} | START - ${checkWork.start} | RANGE - ${checkWork.end}`);
+  }
+
+  static async storeConsensus(consensus: Consensus) {
+    appendToFile(`${require.main.filename.split('src')[0]}/files/results.txt`, `${consensus.number} - ${consensus.isPrime ? 'PRIME' : 'NON-PRIME'}`);
   }
 
 
@@ -139,13 +143,11 @@ export class Leader {
     const scheduledWork = this.scheduleWorkForProposers(numberToCheck, proposers.map((proposer) => proposer.ID));
 
     const promises = Object.entries(scheduledWork).map(async ([proposerId, work]) => {
-      const proposer = proposers.find((proposer) => proposer.ID === proposerId);
+      const proposer = proposers.find((eachProposer) => eachProposer.ID === proposerId);
       await this.deletegateWorkToProposer(work, proposer);
     });
 
     await Promise.all(promises);
-
-    Logger.log('WORK HAS BEEN SCHEDULED TO ALL PROPOSERS');
   }
 
   /**

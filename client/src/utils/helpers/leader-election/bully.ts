@@ -56,11 +56,12 @@ export const startElection = async (nodeId: number) => {
     // make the passed node ID as the leader.
     await node.setLeaderId(nodeId, true);
     await Leader.prepareRolesForNodes();
+    await Leader.sendNumberWithSchedulingToProposers(); // begin initial scheduling after informing roles
   } else {
     // there are higher nodes, let them take over.
     Logger.log(`HAVE ${higherNodes.length} NODES WITH HIGHER ID THAN ${nodeId}`)
     const promises = higherNodes.map(async (electingNode) => {
-      const electionUrl = constructUrlToHit('localhost', electingNode.port, '/election');
+      const electionUrl = constructUrlToHit(electingNode.ip, electingNode.port, '/election');
       await axios.post(electionUrl, { invokeNodeId: nodeId })
       Logger.log(`HANDING ELECTION OVER TO: ${nodeId}`)
     });

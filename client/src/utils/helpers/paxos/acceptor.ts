@@ -17,16 +17,21 @@ export class Acceptor {
   private static analyzeResult(primeResult: PrimeProcess, checkedBy: number): LearnerResponse {
     const { action, payload, } = primeResult;
     if (action === 'prime') {
+      Logger.log('PROPOSER SAID IT WAS A PRIME. NOT VERIFYING');
       // proposer said it was a prime;
       return { checkedNumber: primeResult.payload.number, isPrime: true, checkedBy };
     } else if (action === 'non-prime') {
+      Logger.log('PROPOSER SAID IT WAS NOT PRIME. VERIFYING');
       // proposer said it was not a prime, verify if that is the case.
-      const { divisibleBy, number, start } = payload;
-      const isIsReallyNonPrime = !isPrime(number, start, divisibleBy);
+      const { divisibleBy, number: checkedNumber, start } = payload;
+      const isIsReallyNonPrime = isPrime(checkedNumber, start, divisibleBy).action === 'non-prime';
       if (isIsReallyNonPrime) {
+        Logger.log(`VERIFIED. ${checkedNumber} IS NOT PRIME`);
         return { checkedNumber: primeResult.payload.number, isPrime: false, checkedBy };
       }
-      // TODO: proposer made a mistake
+      Logger.log(`PROPOSER MADE AN ERROR. IT IS ACTUALLY PRIME`);
+      // TODO: Implement proposer handling errors.
+      return { checkedNumber: primeResult.payload.number, isPrime: true, checkedBy };
     }
   }
 

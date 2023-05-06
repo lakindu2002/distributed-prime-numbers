@@ -41,6 +41,7 @@ export class Learner {
 
   setResponsesToArrive(responsesToArrive: number) {
     this.responsesToArrive = responsesToArrive;
+    Logger.log(`LEARNER WILL EXPECT ${this.responsesToArrive} RESPONSES`);
   }
 
   getResponsesToArrive() {
@@ -81,5 +82,6 @@ export class Learner {
   clearResponses() {
     this.finalizedResponses = [];
     this.proposerCount = undefined;
+    this.responsesToArrive = 0;
   }
 }

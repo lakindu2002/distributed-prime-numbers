@@ -1,12 +1,12 @@
 import { Role } from "@distributed/types/common";
-import { Logger, broadcastMessage, getRandomTimeDuration, startElection, getRandomNumber } from "@distributed/utils/helpers";
+import { Logger, broadcastMessage, getRandomTimeDuration, startElection } from "@distributed/utils/helpers";
 import { Agent } from "../agent";
 
 export const createNodeId = (): number => {
   const MAX_BOUND = 500000;
   const MIN_BOUND = 400000;
   const currentTimeInMs = Date.now();
-  const randomNum = getRandomNumber(MAX_BOUND, MIN_BOUND);
+  const randomNum = Math.floor(Math.random() * (MAX_BOUND - MIN_BOUND + 1)) + MIN_BOUND
   return randomNum + currentTimeInMs;
 };
 

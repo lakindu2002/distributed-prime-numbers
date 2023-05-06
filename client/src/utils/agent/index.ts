@@ -75,7 +75,7 @@ export class Agent {
 
   async getInstance(instanceId: string) {
     const instances = await this.getInstances();
-    const instance = instances.find((instance) => instance.ID === instanceId);
+    const instance = instances.find((eachInstance) => eachInstance.ID === instanceId);
     if (!instance) {
       throw new Error('Instance not found');
     }
