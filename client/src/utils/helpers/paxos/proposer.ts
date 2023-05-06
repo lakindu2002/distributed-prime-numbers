@@ -3,6 +3,7 @@ import { PrimeProcess } from "@distributed/types/common";
 import { constructUrlToHit, getAllAcceptors } from "../common";
 import { isPrime } from "../prime-util";
 import axios from "axios";
+import { Logger } from "../logger";
 
 export class Proposer {
   /**
@@ -16,6 +17,7 @@ export class Proposer {
 
   static commencePrimeCheck = async (start: number, end: number, check: number) => {
     const response = isPrime(check, start, end);
+    Logger.log(`PROPOSER - ${node.getNodeId()} TRACKED RANGES - ${start} TO ${end} FOR NUMBER - ${check} AND IDENTIFIED AS ${response.action}`);
     await this.pushPrimeCheckToRandomAcceptor(response);
   }
 
@@ -30,6 +32,7 @@ export class Proposer {
 
     const url = constructUrlToHit(ip, Port, '/actions/acceptor/accept-response')
     await axios.post(url, { primeResponse: response, proposedBy: node.getNodeId() })
+    Logger.log(`RESPONSE PUSHED TO ACCEPTOR - ${randomAcceptor.ID}`);
   }
 }
 

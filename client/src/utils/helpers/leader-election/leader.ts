@@ -1,12 +1,25 @@
 import axios from "axios";
-import { Role, RoleNotification } from "@distributed/types/common";
-import { constructUrlToHit, getLearner, getProposers } from "../common";
-import { Logger } from "../logger";
+import { ConsulInstance, PrimeCheckRequest, Role, RoleNotification } from "@distributed/types/common";
+import { constructUrlToHit, getLearner, getProposers } from "@distributed/utils/helpers/common";
+import { Logger } from "@distributed/utils/helpers/logger";
 import { Agent } from "@distributed/utils/agent";
+import { readTextFile } from "@distributed/utils/helpers/load-file";
 
 export class Leader {
   private static MAX_ACCEPTORS: number = 2;
   private static MAX_LEARNERS: number = 1;
+
+  private static numbersToCheck: number[];
+
+  /**
+   * the current number position that is being processed in the system
+   */
+  private static currentCheckingNumberIndex = 0;
+
+  static clearFileInformation() {
+    this.numbersToCheck = [];
+    this.currentCheckingNumberIndex = 0;
+  }
 
   /**
    * Always have 2 acceptors and 1 learner. The rest can be proposers solving the ranges.
@@ -68,6 +81,7 @@ export class Leader {
     await Promise.all(promises);
     Logger.log(`ROLES NOTIFIED TO ALL NODES`)
     await this.informLearner();
+    await this.sendNumberWithSchedulingToProposers(); // begin initial scheduling after informing roles
   }
 
   /**
@@ -81,22 +95,73 @@ export class Leader {
   }
 
   /**
+   * Method will get the number from the list to check if its prime or not. 
+   * @returns number - if there is a number | undefined is there is no next number.
+   */
+  private static getNextNumber(): number | undefined {
+    if (this.numbersToCheck.length === 0) {
+      // no data, load from file
+      const fileInfo = readTextFile('../../../files/numbers.txt');
+      this.numbersToCheck = fileInfo.split('\n').map(Number);
+    }
+    const number = this.numbersToCheck[this.currentCheckingNumberIndex];
+    this.currentCheckingNumberIndex++;
+    return number;
+  }
+
+  /**
+   * Method will get the proposers to get the count to schedule work.
+   */
+  private static async getProposers() {
+    const instances = await Agent.getSingleton().getInstances();
+    const proposers = instances.filter((instance) => instance.Meta.role === Role.PROPOSER);
+    return proposers;
+  }
+
+  /**
+   * Method will give work to the proposer to check number for prime
+   * @param checkWork The range to check if a number is a prime
+   * @param proposerId The proposer to delegate work to.
+   */
+  private static async deletegateWorkToProposer(checkWork: PrimeCheckRequest, proposer: ConsulInstance) {
+    const url = constructUrlToHit(proposer.Meta.ip, proposer.Port, '/actions/proposer/checks/prime');
+    await axios.post(url, checkWork);
+  }
+
+
+  static async sendNumberWithSchedulingToProposers() {
+    const numberToCheck = this.getNextNumber();
+    if (!numberToCheck) {
+      Logger.log('NO NEW NUMBER TO CHECK. ALL NUMBERS WERE CHECKED');
+      return;
+    }
+    const proposers = await this.getProposers();
+    const scheduledWork = this.scheduleWorkForProposers(numberToCheck, proposers.map((proposer) => proposer.ID));
+
+    const promises = Object.entries(scheduledWork).map(async ([proposerId, work]) => {
+      const proposer = proposers.find((proposer) => proposer.ID === proposerId);
+      await this.deletegateWorkToProposer(work, proposer);
+    });
+
+    await Promise.all(promises);
+
+    Logger.log('WORK HAS BEEN SCHEDULED TO ALL PROPOSERS');
+  }
+
+  /**
    * Schedules work for proposer nodes by dividing a given number into n equal parts,
    * where n is the number of proposer nodes.
    * @param numberToCheck the number that needs to be checked for primality.
    * @param proposerIds array of strings containing the IDs of the proposer nodes
    * @returns An object containing the range of values assigned to each proposer node.
    */
-  scheduleWorkForProposers(numberToCheck: number, proposerIds: string[]) {
+  private static scheduleWorkForProposers(numberToCheck: number, proposerIds: string[]) {
     // calculate the size of the range that each proposer node should be assigned
     const rangeSize = Math.floor(numberToCheck / proposerIds.length);
 
     // store the ranges that will be assigned to each proposer node.
     const ranges: {
-      [proposerId: string]: {
-        start: number,
-        end: number
-      }
+      [proposerId: string]: PrimeCheckRequest
     } = {}
 
     // Assign each range to a proposer node
@@ -106,7 +171,8 @@ export class Leader {
       const end = (i === proposerIds.length - 1) ? numberToCheck : (i + 1) * rangeSize - 1;
       ranges[proposerIds[i]] = {
         end,
-        start
+        start,
+        check: numberToCheck
       }
     }
 

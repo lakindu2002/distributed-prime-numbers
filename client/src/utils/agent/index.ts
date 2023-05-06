@@ -73,6 +73,15 @@ export class Agent {
     node.removePing();
   }
 
+  async getInstance(instanceId: string) {
+    const instances = await this.getInstances();
+    const instance = instances.find((instance) => instance.ID === instanceId);
+    if (!instance) {
+      throw new Error('Instance not found');
+    }
+    return instance;
+  }
+
   async getInstances(): Promise<ConsulInstance[]> {
     const url = constructUrlToHit(process.env.CONSUL_HOST, Number(process.env.CONSUL_PORT), '/v1/agent/services')
     const resp = await axios.get<{ [instanceId: string]: ConsulInstance }>(url);

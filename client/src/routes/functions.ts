@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
 import node from "@distributed/utils/node";
 import { Agent } from "@distributed/utils/agent";
-import { startElection } from "@distributed/utils/helpers";
-import { LearnerResponse, PrimeProcess, Role } from "@distributed/types/common";
+import { Logger, startElection } from "@distributed/utils/helpers";
+import { Consensus, LearnerResponse, PrimeCheckRequest, PrimeProcess, Role } from "@distributed/types/common";
 import { Proposer } from "@distributed/utils/helpers/paxos/proposer";
 import { Acceptor } from "@distributed/utils/helpers/paxos/acceptor";
 import { Learner } from "@distributed/utils/helpers/paxos/learner";
+import { Leader } from "@distributed/utils/helpers/leader-election/leader";
 
 export const getHome = (_req: Request, resp: Response) => {
   return resp.json({ message: 'hello world!' })
@@ -54,7 +55,7 @@ export const obtainNewRole = (req: Request, res: Response) => {
 }
 
 export const checkPrimeInProposer = async (req: Request, res: Response) => {
-  const { check, end, start } = req.body as { start: number, end: number, check: number };
+  const { check, end, start } = req.body as PrimeCheckRequest;
   await Proposer.commencePrimeCheck(start, end, check);
   res.json({ message: 'ACCEPTED' })
 }
@@ -66,10 +67,15 @@ export const acceptResponseToLearnerFromAcceptor = async (req: Request, res: Res
 
   if (learner.getResponsesToArrive() === 0) {
     // all responses have arrived, can compute final score
-    learner.processFinalResponse();
+    Logger.log('ALL RESPONSES RECIEVED. READY TO REACH CONSENSUS');
+
+    const finalizedAnswer = learner.proposeFinalAnswer();
+
+    Logger.log(`FINAL CONSENSUS REACHED - NUMBER ${finalizedAnswer.number} IS ${finalizedAnswer.isPrime ? 'PRIME' : 'NON-PRIME'}`);
+    await learner.informLeaderOnConsensus(finalizedAnswer);
+    res.json({ message: 'CONSENSUS_DELIVERED_TO_LEADER' })
+    return;
   }
-
-
   res.json({ message: 'ACCEPTED' })
 }
 
@@ -82,5 +88,12 @@ export const acceptResponseInAcceptor = async (req: Request, res: Response) => {
 export const registerProposerCount = async (req: Request, res: Response) => {
   const { proposerCount } = req.body as { proposerCount: number };
   Learner.getInstance().setProposerCount(proposerCount);
+  res.json({ message: 'ACCEPTED' })
+}
+
+export const deduceConsensus = async (req: Request, res: Response) => {
+  const { consensus } = req.body as { consensus: Consensus };
+  Logger.log(`CONSENSUS SENT TO LEADER - NUMBER: ${consensus.number} IS ${consensus.isPrime ? 'PRIME' : 'NON-PRIME'}`);
+  await Leader.sendNumberWithSchedulingToProposers();
   res.json({ message: 'ACCEPTED' })
 }

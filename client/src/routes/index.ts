@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getHome, getNodeInformation, health, electNewLeader, processElectionRequest, obtainNewRole, registerProposerCount, checkPrimeInProposer, acceptResponseToLearnerFromAcceptor, acceptResponseInAcceptor } from "./functions";
+import { getHome, getNodeInformation, health, electNewLeader, deduceConsensus, processElectionRequest, obtainNewRole, registerProposerCount, checkPrimeInProposer, acceptResponseToLearnerFromAcceptor, acceptResponseInAcceptor } from "./functions";
 
 const routes = Router();
 
@@ -12,6 +12,7 @@ routes.post('/election/completed', electNewLeader);
 
 routes.post('/alerts/role', obtainNewRole);
 routes.post('/alerts/learner/proposer-count', registerProposerCount);
+routes.post('/alerts/leader/consensus', deduceConsensus);
 
 routes.post('/actions/learner/accept-response', acceptResponseToLearnerFromAcceptor);
 routes.post('/actions/acceptor/accept-response', acceptResponseInAcceptor);

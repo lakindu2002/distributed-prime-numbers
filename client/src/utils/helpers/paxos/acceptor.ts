@@ -1,5 +1,6 @@
 import { LearnerResponse, PrimeProcess } from "@distributed/types/common";
-import { constructUrlToHit, getLearner as getLearnerUtil, isPrime } from "@distributed/utils/helpers";
+import { Logger, constructUrlToHit, getLearner as getLearnerUtil, isPrime } from "@distributed/utils/helpers";
+import node from "@distributed/utils/node";
 import axios from "axios";
 
 export class Acceptor {
@@ -33,10 +34,13 @@ export class Acceptor {
     const learner = await this.getLearner();
     const url = constructUrlToHit(learner.Meta.ip, learner.Port, '/actions/learner/accept-response')
     await axios.post(url, { result })
+    Logger.log(`INFORMED LEARNER - ${learner.ID} ABOUT THE ACCEPTED RESPONSE BY THIS ACCEPTOR`);
   }
 
   static async verifyProposerResult(primeResponse: PrimeProcess, checkedBy: number) {
     const verifiedResponse = this.analyzeResult(primeResponse, checkedBy);
+    Logger.log(`VERIFIED RESPONSE IN ACCEPTOR - ${node.getNodeId()} FOR NUMBER - ${primeResponse.payload.number}`);
+    Logger.log(`${checkedBy} INITIALLY SAID IT WAS - ${primeResponse.action}. ACCEPTOR SAYS IT IS ${verifiedResponse.isPrime ? 'prime' : 'non-prime'}`);
     await this.informLearnerOnResponse(verifiedResponse);
   }
 }

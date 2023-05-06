@@ -81,3 +81,7 @@ export interface ConsulInstance {
   EnableTagOverride: boolean,
   Datacenter: string
 }
+
+export type Consensus = { isPrime: boolean, number: number }
+
+export type PrimeCheckRequest = { start: number, end: number, check: number };
