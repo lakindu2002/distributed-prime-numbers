@@ -1,7 +1,7 @@
+import axios from "axios";
 import { LearnerResponse, PrimeProcess } from "@distributed/types/common";
 import { Logger, constructUrlToHit, getLearner as getLearnerUtil, isPrime } from "@distributed/utils/helpers";
 import node from "@distributed/utils/node";
-import axios from "axios";
 
 export class Acceptor {
   private static async getLearner() {

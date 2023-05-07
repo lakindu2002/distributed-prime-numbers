@@ -1,6 +1,6 @@
 import express from "express";
-import routes from "./routes";
-import { Logger } from "./utils/helpers";
+import routes from "@distributed/routes";
+import { Logger } from "@distributed/utils/helpers";
 
 export class Server {
   private server;

@@ -1,9 +1,9 @@
 import axios from "axios";
 import node from "@distributed/utils/node";
 import { NodeResponse } from "@distributed/types/common";
-import { constructUrlToHit, getAllConnectedNodesFromRegistry, getNodes, getRandomTimeDuration } from "../common";
-import { Leader } from "./leader";
-import { Logger } from "../logger";
+import { constructUrlToHit, getAllConnectedNodesFromRegistry, getNodes, getRandomTimeDuration } from "@distributed/utils/helpers/common";
+import { Leader } from "@distributed/utils/leader-election/leader";
+import { Logger } from "@distributed/utils/helpers/logger";
 
 /**
  * Filter nodes based on a condition

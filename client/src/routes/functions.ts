@@ -6,7 +6,7 @@ import { Consensus, LearnerResponse, PrimeCheckRequest, PrimeProcess, Role } fro
 import { Proposer } from "@distributed/utils/helpers/paxos/proposer";
 import { Acceptor } from "@distributed/utils/helpers/paxos/acceptor";
 import { Learner } from "@distributed/utils/helpers/paxos/learner";
-import { Leader } from "@distributed/utils/helpers/leader-election/leader";
+import { Leader } from "@distributed/utils/leader-election/leader";
 
 export const getHome = (_req: Request, resp: Response) => {
   return resp.json({ message: 'hello world!' })

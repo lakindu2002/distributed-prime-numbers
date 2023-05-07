@@ -1,6 +1,7 @@
 import { Role } from "@distributed/types/common";
-import { Logger, broadcastMessage, getRandomTimeDuration, startElection } from "@distributed/utils/helpers";
-import { Agent } from "../agent";
+import { Logger, broadcastMessage, getRandomTimeDuration } from "@distributed/utils/helpers";
+import { startElection } from '@distributed/utils/leader-election/bully';
+import { Agent } from "@distributed/utils/agent";
 
 export const createNodeId = (): number => {
   const MAX_BOUND = 500000;

@@ -1,9 +1,8 @@
 import node from "@distributed/utils/node";
 import { PrimeProcess } from "@distributed/types/common";
-import { constructUrlToHit, getAllAcceptors } from "../common";
-import { isPrime } from "../prime-util";
 import axios from "axios";
-import { Logger } from "../logger";
+import { isPrime, Logger, constructUrlToHit } from "@distributed/utils/helpers";
+import { getAllAcceptors } from "@distributed/utils/helpers/common";
 
 export class Proposer {
   /**

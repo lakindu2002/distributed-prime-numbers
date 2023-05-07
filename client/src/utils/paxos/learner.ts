@@ -1,9 +1,8 @@
 import node from "@distributed/utils/node";
 import { Consensus, LearnerResponse } from "@distributed/types/common";
 import { Agent } from "@distributed/utils/agent";
-import { constructUrlToHit } from "../common";
 import axios from "axios";
-import { Logger } from "../logger";
+import { Logger, constructUrlToHit } from "@distributed/utils/helpers";
 
 export class Learner {
   private finalizedResponses: LearnerResponse[];

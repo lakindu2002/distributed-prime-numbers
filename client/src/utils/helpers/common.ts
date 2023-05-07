@@ -1,7 +1,7 @@
 import { ConnectedNode, Message, NodeResponse, Role } from "@distributed/types/common";
 import { Agent } from "@distributed/utils/agent";
-import { notifyLeaderElected } from "./leader-election/bully";
-import { Logger } from "./logger";
+import { notifyLeaderElected } from "@distributed/utils/leader-election/bully";
+import { Logger } from "@distributed/utils/helpers/logger";
 import axios from "axios";
 
 export const constructUrlToHit = (ip: string, port: number, path: string) => `http://${ip}:${port}${path}`;

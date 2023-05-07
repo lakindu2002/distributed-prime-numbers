@@ -1,7 +1,8 @@
-import { ConsulInstance } from "@distributed/types/common";
-import { Logger, constructUrlToHit, onConnectedToServer } from "@distributed/utils/helpers";
 import axios from "axios";
 import node from "@distributed/utils/node";
+import { ConsulInstance } from "@distributed/types/common";
+import { Logger, constructUrlToHit } from "@distributed/utils/helpers";
+import { onConnectedToServer } from "@distributed/utils/leader-election/bully";
 
 type AgentCreate = {
   port: number;
