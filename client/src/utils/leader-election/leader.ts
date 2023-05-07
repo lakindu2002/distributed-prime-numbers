@@ -1,4 +1,5 @@
 import axios from "axios";
+import cache from "@distributed/utils/helpers/cache";
 import { Consensus, ConsulInstance, PrimeCheckRequest, Role, RoleNotification } from "@distributed/types/common";
 import { constructUrlToHit, getLearner, getProposers } from "@distributed/utils/helpers/common";
 import { Logger } from "@distributed/utils/helpers/logger";
@@ -30,6 +31,7 @@ export class Leader {
     const nodes = await Agent.getSingleton().getActiveInstances();
     const acceptors = nodes.filter((app) => app.Meta.role === Role.ACCEPTOR);
     const learners = nodes.filter((app) => app.Meta.role === Role.LEARNER);
+    const proposers = nodes.filter((app) => app.Meta.role === Role.PROPOSER);
     const unknownNodes = nodes.filter((app) => !app.Meta.role);
     const numAcceptors = acceptors.length;
     const numLearners = learners.length;
@@ -64,6 +66,28 @@ export class Leader {
       });
     });
     Logger.log(`ROLES PREPARED`)
+
+    const newAcceptors = [...acceptors, ...definedRoles.filter((newRole) => newRole.role === Role.ACCEPTOR).map((newRole) => {
+      const nodeInfo = nodes.find((node) => node.ID === newRole.instanceId.toString());
+      return { ...nodeInfo, Meta: { ...nodeInfo.Meta, role: newRole.role } }
+    })]
+
+    const newLearners = [...learners, ...definedRoles.filter((newRole) => newRole.role === Role.LEARNER).map((newRole) => {
+      const nodeInfo = nodes.find((node) => node.ID === newRole.instanceId.toString());
+      return { ...nodeInfo, Meta: { ...nodeInfo.Meta, role: newRole.role } }
+    })]
+
+    const newProposers = [...proposers, ...definedRoles.filter((newRole) => newRole.role === Role.PROPOSER).map((newRole) => {
+      const nodeInfo = nodes.find((node) => node.ID === newRole.instanceId.toString());
+      return { ...nodeInfo, Meta: { ...nodeInfo.Meta, role: newRole.role } }
+    })]
+
+    await Promise.all([
+      cache.saveItemToCache(Role.ACCEPTOR, JSON.stringify(newAcceptors), 3),
+      cache.saveItemToCache(Role.LEARNER, JSON.stringify(newLearners), 3),
+      cache.saveItemToCache(Role.PROPOSER, JSON.stringify(newProposers), 3),
+    ])
+
     await this.notifyRoles(definedRoles);
     await Leader.informLearner(); // inform learners how many proposers are in the schedule.
   }

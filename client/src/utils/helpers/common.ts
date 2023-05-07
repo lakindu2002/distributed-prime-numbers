@@ -1,8 +1,9 @@
-import { ConnectedNode, Message, NodeResponse, Role } from "@distributed/types/common";
+import { ConnectedNode, ConsulInstance, Message, NodeResponse, Role } from "@distributed/types/common";
 import { Agent } from "@distributed/utils/agent";
 import { notifyLeaderElected } from "@distributed/utils/leader-election/bully";
 import { Logger } from "@distributed/utils/helpers/logger";
 import axios from "axios";
+import cache from "@distributed/utils/helpers/cache";
 
 export const constructUrlToHit = (path: string, ip: string = Agent.getSingleton().getIp(), port: number = Agent.getSingleton().getSidecarPort()) => `http://${ip}:${port}${path}`;
 
@@ -67,22 +68,47 @@ export const getNodes = async (): Promise<NodeResponse[]> => {
 }
 
 export const getAllAcceptors = async () => {
+  const cacheKey = Role.ACCEPTOR;
+  const cacheResp = await cache.getItemFromCache(cacheKey);
+
+  if (!!cacheResp && cacheResp !== null) {
+    return JSON.parse(cacheResp) as ConsulInstance[];
+  }
   const nodes = await Agent.getSingleton().getActiveInstances();
-  return nodes.filter((app) => app.Meta.role === Role.ACCEPTOR);
+  const acceptors = nodes.filter((app) => app.Meta.role === Role.ACCEPTOR);
+  await cache.saveItemToCache(cacheKey, JSON.stringify(acceptors), 3);
+  return acceptors;
 };
 
 export const getLearner = async () => {
+  const cacheKey = Role.LEARNER;
+  const cacheResp = await cache.getItemFromCache(cacheKey);
+
+  if (!!cacheResp && cacheResp !== null) {
+    Logger.log('RETURNING FROM CACHE');
+    return JSON.parse(cacheResp)[0] as ConsulInstance;
+  }
+
   const nodes = await Agent.getSingleton().getActiveInstances();
   const learners = nodes.filter((app) => app.Meta.role === Role.LEARNER); // only one learner will be in the system
   if (learners.length !== 1) {
     throw new Error('Learner count is not 1');
   }
-  return learners[0];
+  await cache.saveItemToCache(cacheKey, JSON.stringify(learners), 3);
+  const learner = learners[0];
+  return learner;
 };
 
 export const getProposers = async () => {
+  const cacheKey = Role.PROPOSER;
+  const cacheResp = await cache.getItemFromCache(cacheKey);
+
+  if (!!cacheResp && cacheResp !== null) {
+    return JSON.parse(cacheResp) as ConsulInstance[];
+  }
   const nodes = await Agent.getSingleton().getActiveInstances();
   const proposers = nodes.filter((app) => app.Meta.role === Role.PROPOSER);
+  await cache.saveItemToCache(cacheKey, JSON.stringify(proposers), 3);
   return proposers;
 };
 

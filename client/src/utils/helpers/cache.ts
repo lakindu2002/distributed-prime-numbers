@@ -11,8 +11,8 @@ export class Cache {
     await this.client.connect();
   }
 
-  async saveItemToCache(key: string, value: string) {
-    await this.client.set(key, value);
+  async saveItemToCache(key: string, value: string, ttl: number = 20) {
+    await this.client.set(key, value, { EX: ttl });
   }
 
   async getItemFromCache(key: string) {

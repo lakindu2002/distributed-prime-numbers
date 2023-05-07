@@ -17,12 +17,12 @@ export class Proposer {
 
   static commencePrimeCheck = async (start: number, end: number, check: number) => {
     const cacheKey = `${check}#${start}#${end}`;
-    const item = await cache.getItemFromCache(cacheKey);
+    const cacheResp = await cache.getItemFromCache(cacheKey);
     let response: PrimeProcess;
-    if (!!item) {
+    if (!!cacheResp && cacheResp !== null) {
       // cache hit
       Logger.log('PRIME PROCESS WAS A CACHE HIT')
-      response = JSON.parse(item) as PrimeProcess;
+      response = JSON.parse(cacheResp) as PrimeProcess;
       await this.pushPrimeCheckToRandomAcceptor(response);
     } else {
       // cache miss
