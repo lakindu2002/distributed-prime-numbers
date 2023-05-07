@@ -1,7 +1,7 @@
 import axios from "axios";
 import node from "@distributed/utils/node";
 import { LearnerResponse, PrimeProcess } from "@distributed/types/common";
-import { Logger, constructUrlToHit, getLearner as getLearnerUtil, isPrime } from "@distributed/utils/helpers";
+import { Logger, constructUrlToHit, getLearner as getLearnerUtil } from "@distributed/utils/helpers";
 
 export class Acceptor {
   private static async getLearner() {
@@ -23,14 +23,13 @@ export class Acceptor {
     } else if (action === 'non-prime') {
       Logger.log('PROPOSER SAID IT WAS NOT PRIME. VERIFYING');
       // proposer said it was not a prime, verify if that is the case.
-      const { divisibleBy, number: checkedNumber, start } = payload;
-      const isIsReallyNonPrime = isPrime(checkedNumber, start, divisibleBy).action === 'non-prime';
-      if (isIsReallyNonPrime) {
+      const { divisibleBy, number: checkedNumber } = payload;
+      const isReallyNonPrime = checkedNumber % divisibleBy === 0;
+      if (isReallyNonPrime) {
         Logger.log(`VERIFIED. ${checkedNumber} IS NOT PRIME`);
         return { checkedNumber: primeResult.payload.number, type: 'non-prime', checkedBy };
       }
       Logger.log(`PROPOSER MADE AN ERROR. IT IS ACTUALLY PRIME`);
-      // TODO: Implement proposer handling errors.
       return { checkedNumber: primeResult.payload.number, type: 'prime', checkedBy };
     }
   }
