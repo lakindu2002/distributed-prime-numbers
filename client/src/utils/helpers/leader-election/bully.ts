@@ -81,7 +81,7 @@ export const onConnectedToServer = async () => {
     // no leader, wait for a few and then start election
     setTimeout(async () => {
       await startElection(nodeId);
-    }, getRandomTimeDuration())
+    }, getRandomTimeDuration(30, 20))
   }
 };
 
