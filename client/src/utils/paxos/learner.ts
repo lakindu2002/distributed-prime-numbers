@@ -62,12 +62,12 @@ export class Learner {
    * If there is even one message saying its not a prime the learner will decide the number is not prime.
    * If all the nodes say its prime then acceptor will decide its prime.
    */
-  proposeFinalAnswer() {
+  proposeFinalAnswer(): Consensus {
     if (this.proposerCount !== this.finalizedResponses.length) {
       throw new Error('The number of recieved responses and the number of proposers do not tally');
     }
-    const anyNonPrimeResponse = this.finalizedResponses.some((response) => !response.isPrime)
-    return { isPrime: !anyNonPrimeResponse, number: this.finalizedResponses[0].checkedNumber };
+    const anyNonPrimeResponse = this.finalizedResponses.some((response) => response.type === 'non-prime')
+    return { type: anyNonPrimeResponse ? 'non-prime' : 'prime', number: this.finalizedResponses[0].checkedNumber };
   }
 
   async informLeaderOnConsensus(consensus: Consensus) {

@@ -1,12 +1,13 @@
 import { Request, Response } from "express";
 import node from "@distributed/utils/node";
 import { Agent } from "@distributed/utils/agent";
-import { Logger, startElection } from "@distributed/utils/helpers";
+import { Logger } from "@distributed/utils/helpers";
 import { Consensus, LearnerResponse, PrimeCheckRequest, PrimeProcess, Role } from "@distributed/types/common";
-import { Proposer } from "@distributed/utils/helpers/paxos/proposer";
-import { Acceptor } from "@distributed/utils/helpers/paxos/acceptor";
-import { Learner } from "@distributed/utils/helpers/paxos/learner";
 import { Leader } from "@distributed/utils/leader-election/leader";
+import { startElection } from "@distributed/utils/leader-election/bully";
+import { Acceptor } from "@distributed/utils/paxos/acceptor";
+import { Learner } from "@distributed/utils/paxos/learner";
+import { Proposer } from "@distributed/utils/paxos/proposer";
 
 export const getHome = (_req: Request, resp: Response) => {
   return resp.json({ message: 'hello world!' })
@@ -73,7 +74,7 @@ export const acceptResponseToLearnerFromAcceptor = async (req: Request, res: Res
 
     const finalizedAnswer = learner.proposeFinalAnswer();
 
-    Logger.log(`FINAL CONSENSUS REACHED - NUMBER ${finalizedAnswer.number} IS ${finalizedAnswer.isPrime ? 'PRIME' : 'NON-PRIME'}`);
+    Logger.log(`FINAL CONSENSUS REACHED - NUMBER ${finalizedAnswer.number} IS ${finalizedAnswer.type}`);
     await learner.informLeaderOnConsensus(finalizedAnswer);
     res.json({ message: 'CONSENSUS_DELIVERED_TO_LEADER' })
     return;
@@ -95,7 +96,7 @@ export const registerProposerCount = async (req: Request, res: Response) => {
 
 export const deduceConsensus = async (req: Request, res: Response) => {
   const { consensus } = req.body as { consensus: Consensus };
-  Logger.log(`CONSENSUS RECIEVED BY LEADER - NUMBER: ${consensus.number} IS ${consensus.isPrime ? 'PRIME' : 'NON-PRIME'}`);
+  Logger.log(`CONSENSUS RECIEVED BY LEADER - NUMBER: ${consensus.number} IS ${consensus.type}`);
   await Leader.storeConsensus(consensus);
   await Leader.prepareRolesForNodes();
   await Leader.sendNumberWithSchedulingToProposers();

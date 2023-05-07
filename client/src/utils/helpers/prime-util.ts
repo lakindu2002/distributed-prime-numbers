@@ -15,9 +15,21 @@ export const isPrime = (
   const payload = {
     end,
     start,
-    number: numberToCheck
+    number: numberToCheck,
+  };
+
+  if (numberToCheck < 2) {
+    return {
+      action: "non-prime",
+      payload: {
+        ...payload,
+        isPrime: false,
+        message: "Number is not prime",
+      },
+    };
   }
-  for (let i = start; i <= end; i++) {
+
+  for (let i = Math.max(2, start); i <= Math.sqrt(numberToCheck) && i <= end; i++) {
     if (numberToCheck % i === 0) {
       return {
         action: "non-prime",
@@ -25,17 +37,19 @@ export const isPrime = (
           ...payload,
           isPrime: false,
           divisibleBy: i,
-          message: 'Number is not prime'
+          message: "Number is not prime",
         },
       };
     }
   }
+
   return {
     action: "prime",
     payload: {
       ...payload,
       isPrime: true,
-      message: 'Number is prime'
+      message: "Number is prime",
     },
   };
 };
+

@@ -1,7 +1,7 @@
 import axios from "axios";
+import node from "@distributed/utils/node";
 import { LearnerResponse, PrimeProcess } from "@distributed/types/common";
 import { Logger, constructUrlToHit, getLearner as getLearnerUtil, isPrime } from "@distributed/utils/helpers";
-import node from "@distributed/utils/node";
 
 export class Acceptor {
   private static async getLearner() {
@@ -19,7 +19,7 @@ export class Acceptor {
     if (action === 'prime') {
       Logger.log('PROPOSER SAID IT WAS A PRIME. NOT VERIFYING');
       // proposer said it was a prime;
-      return { checkedNumber: primeResult.payload.number, isPrime: true, checkedBy };
+      return { checkedNumber: primeResult.payload.number, type: 'prime', checkedBy };
     } else if (action === 'non-prime') {
       Logger.log('PROPOSER SAID IT WAS NOT PRIME. VERIFYING');
       // proposer said it was not a prime, verify if that is the case.
@@ -27,11 +27,11 @@ export class Acceptor {
       const isIsReallyNonPrime = isPrime(checkedNumber, start, divisibleBy).action === 'non-prime';
       if (isIsReallyNonPrime) {
         Logger.log(`VERIFIED. ${checkedNumber} IS NOT PRIME`);
-        return { checkedNumber: primeResult.payload.number, isPrime: false, checkedBy };
+        return { checkedNumber: primeResult.payload.number, type: 'non-prime', checkedBy };
       }
       Logger.log(`PROPOSER MADE AN ERROR. IT IS ACTUALLY PRIME`);
       // TODO: Implement proposer handling errors.
-      return { checkedNumber: primeResult.payload.number, isPrime: true, checkedBy };
+      return { checkedNumber: primeResult.payload.number, type: 'prime', checkedBy };
     }
   }
 
@@ -45,7 +45,7 @@ export class Acceptor {
   static async verifyProposerResult(primeResponse: PrimeProcess, checkedBy: number) {
     const verifiedResponse = this.analyzeResult(primeResponse, checkedBy);
     Logger.log(`VERIFIED RESPONSE IN ACCEPTOR - ${node.getNodeId()} FOR NUMBER - ${primeResponse.payload.number}`);
-    Logger.log(`${checkedBy} INITIALLY SAID IT WAS - ${primeResponse.action}. ACCEPTOR SAYS IT IS ${verifiedResponse.isPrime ? 'prime' : 'non-prime'}`);
+    Logger.log(`${checkedBy} INITIALLY SAID IT WAS - ${primeResponse.action}. ACCEPTOR SAYS IT IS ${verifiedResponse.type}`);
     await this.informLearnerOnResponse(verifiedResponse);
   }
 }

@@ -129,7 +129,7 @@ export class Leader {
   }
 
   static async storeConsensus(consensus: Consensus) {
-    appendToFile(`${require.main.filename.split('src')[0]}/files/results.txt`, `${consensus.number} - ${consensus.isPrime ? 'PRIME' : 'NON-PRIME'}`);
+    appendToFile(`${require.main.filename.split('src')[0]}/files/results.txt`, `${consensus.number} - ${consensus.type}`);
   }
 
 
@@ -140,6 +140,7 @@ export class Leader {
       return;
     }
     const proposers = await this.getProposers();
+
     const scheduledWork = this.scheduleWorkForProposers(numberToCheck, proposers.map((proposer) => proposer.ID));
 
     const promises = Object.entries(scheduledWork).map(async ([proposerId, work]) => {

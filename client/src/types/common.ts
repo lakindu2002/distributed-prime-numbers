@@ -41,14 +41,14 @@ type NonPrimeResponse = {
     isPrime: boolean,
     start: number,
     end: number,
-    divisibleBy: number
+    divisibleBy?: number
     message: string
   }
 }
 
 export type LearnerResponse = {
   checkedNumber: number
-  isPrime: boolean
+  type: 'prime' | 'non-prime'
   checkedBy: number
 }
 
@@ -82,6 +82,6 @@ export interface ConsulInstance {
   Datacenter: string
 }
 
-export type Consensus = { isPrime: boolean, number: number }
+export type Consensus = { type: 'prime' | 'non-prime', number: number }
 
 export type PrimeCheckRequest = { start: number, end: number, check: number };
