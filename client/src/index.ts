@@ -3,6 +3,8 @@ import cli from "@distributed/utils/cli";
 import api from '@distributed/server';
 import sidecar from '@distributed/sidecar';
 import node from '@distributed/utils/node';
+import cache from "./utils/helpers/cache";
+import { Logger } from "./utils/helpers";
 
 require("dotenv").config();
 
@@ -22,10 +24,15 @@ const agent = Agent.getSingleton({
 
 agent.connectWithServer();
 
+cache.connectToCache().then(() => {
+  Logger.log('connected to cache');
+});
+
 async function exitHandler(options: any) {
   if (options.exit) {
     await agent.disconnectFromServer();
     sidecar.stopSidecar();
+    await cache.disconnectFromCache();
     process.exit(0);
   }
 }

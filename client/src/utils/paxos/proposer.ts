@@ -3,6 +3,7 @@ import { PrimeProcess } from "@distributed/types/common";
 import axios from "axios";
 import { isPrime, Logger, constructUrlToHit } from "@distributed/utils/helpers";
 import { getAllAcceptors } from "@distributed/utils/helpers/common";
+import cache from "@distributed/utils/helpers/cache";
 
 export class Proposer {
   /**
@@ -15,9 +16,21 @@ export class Proposer {
   };
 
   static commencePrimeCheck = async (start: number, end: number, check: number) => {
-    const response = isPrime(check, start, end);
-    Logger.log(`PROPOSER - ${node.getNodeId()} TRACKED RANGES - ${start} TO ${end} FOR NUMBER - ${check} AND IDENTIFIED AS ${response.action}`);
+    const cacheKey = `${check}#${start}#${end}`;
+    const item = await cache.getItemFromCache(cacheKey);
+    let response: PrimeProcess;
+    if (!!item) {
+      // cache hit
+      Logger.log('PRIME PROCESS WAS A CACHE HIT')
+      response = JSON.parse(item) as PrimeProcess;
+      await this.pushPrimeCheckToRandomAcceptor(response);
+    } else {
+      // cache miss
+      response = isPrime(check, start, end);
+      await cache.saveItemToCache(cacheKey, JSON.stringify(response));
+    }
     await this.pushPrimeCheckToRandomAcceptor(response);
+    Logger.log(`PROPOSER - ${node.getNodeId()} TRACKED RANGES - ${start} TO ${end} FOR NUMBER - ${check} AND IDENTIFIED AS ${response.action}`);
   }
 
   /**

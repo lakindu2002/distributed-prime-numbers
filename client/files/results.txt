@@ -46,8 +46,8 @@
 87540 - non-prime
 50261 - prime
 63277 - prime
+63277 - prime
 21929 - prime
-54322 - non-prime
 25919 - prime
 35125 - non-prime
 10007 - prime
@@ -147,4 +147,17 @@
 11011 - non-prime
 11014 - non-prime
 11053 - non-prime
+11062 - non-prime
+10906 - non-prime
+10921 - non-prime
+10930 - non-prime
+10939 - prime
+10954 - non-prime
+10963 - non-prime
+10974 - non-prime
+10987 - prime
+10990 - non-prime
+11011 - non-prime
+11014 - non-prime
+11014 - non-prime
 11062 - non-prime

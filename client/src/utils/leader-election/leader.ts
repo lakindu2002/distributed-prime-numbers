@@ -62,7 +62,6 @@ export class Leader {
         connectingPort: unknownNode.Port,
         connectingIp: unknownNode.Meta.ip
       });
-
     });
     Logger.log(`ROLES PREPARED`)
     await this.notifyRoles(definedRoles);
