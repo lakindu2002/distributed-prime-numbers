@@ -4,7 +4,7 @@ import { notifyLeaderElected } from "@distributed/utils/leader-election/bully";
 import { Logger } from "@distributed/utils/helpers/logger";
 import axios from "axios";
 
-export const constructUrlToHit = (ip: string, port: number, path: string) => `http://${ip}:${port}${path}`;
+export const constructUrlToHit = (path: string, ip: string = Agent.getSingleton().getIp(), port: number = Agent.getSingleton().getSidecarPort()) => `http://${ip}:${port}${path}`;
 
 /**
  * Fetch all connected nodes in service regsitry in custom shape
@@ -26,7 +26,11 @@ export const getAllConnectedNodesFromRegistry = async (): Promise<ConnectedNode[
  */
 export const getNodesInformation = async (nodes: ConnectedNode[]): Promise<NodeResponse[]> => {
   const promises = nodes.map(async (eachNode) => {
-    const resp = await axios.get<Partial<NodeResponse>>(constructUrlToHit('localhost', eachNode.port, '/information'))
+    const resp = await axios.get<Partial<NodeResponse>>(constructUrlToHit('/information'), {
+      headers: {
+        destination: `${eachNode.ip}:${eachNode.port}`
+      }
+    })
     return { ...resp.data, ip: eachNode.ip } as NodeResponse;
   })
   const responses = await Promise.all(promises);

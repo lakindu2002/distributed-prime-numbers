@@ -9,6 +9,7 @@ type AgentCreate = {
   hostName: string;
   ipAddr: string;
   instanceId: string;
+  sidecarPort: number;
 };
 
 const getConsulPayload = ({ appName, instanceId, port, ip, customMeta }: { appName: string, instanceId: string, port: number, ip: string, customMeta?: any }) => ({
@@ -38,13 +39,16 @@ export class Agent {
 
   private ipAddr: string;
 
+  private sidecarPort: number
+
   private static singleton: Agent;
 
-  private constructor({ hostName, ipAddr, port, instanceId }: AgentCreate) {
+  private constructor({ hostName, ipAddr, port, instanceId, sidecarPort }: AgentCreate) {
     this.port = port;
     this.ipAddr = ipAddr;
     this.hostName = hostName;
     this.instanceId = instanceId;
+    this.sidecarPort = sidecarPort;
   }
 
   static getSingleton(props?: AgentCreate): Agent {
@@ -60,7 +64,12 @@ export class Agent {
 
   connectWithServer() {
     const registerPayload = getConsulPayload({ appName: process.env.APP_NAME, instanceId: this.instanceId, port: this.port, ip: this.ipAddr });
-    axios.put(constructUrlToHit(process.env.CONSUL_HOST, Number(process.env.CONSUL_PORT), '/v1/agent/service/register'), registerPayload).then(() => {
+    console.log(constructUrlToHit('/v1/agent/service/register'))
+    axios.put(constructUrlToHit('/v1/agent/service/register'), registerPayload, {
+      headers: {
+        destination: `${process.env.CONSUL_HOST}:${Number(process.env.CONSUL_PORT)}`
+      }
+    }).then(() => {
       Logger.log(`Node ${this.hostName} | ${this.instanceId} Registered on Port ${this.port} with Consul`);
       onConnectedToServer();
       node.pingLeader();
@@ -70,7 +79,12 @@ export class Agent {
   }
 
   async disconnectFromServer() {
-    await axios.put(constructUrlToHit(process.env.CONSUL_HOST, Number(process.env.CONSUL_PORT), `/v1/agent/service/deregister/${this.instanceId}`))
+    const url = constructUrlToHit(`/v1/agent/service/deregister/${this.instanceId}`);
+    await axios.put(url, undefined, {
+      headers: {
+        destination: `${process.env.CONSUL_HOST}:${Number(process.env.CONSUL_PORT)}`
+      }
+    })
     node.removePing();
   }
 
@@ -84,15 +98,23 @@ export class Agent {
   }
 
   async getInstances(): Promise<ConsulInstance[]> {
-    const url = constructUrlToHit(process.env.CONSUL_HOST, Number(process.env.CONSUL_PORT), '/v1/agent/services')
-    const resp = await axios.get<{ [instanceId: string]: ConsulInstance }>(url);
+    const url = constructUrlToHit('/v1/agent/services')
+    const resp = await axios.get<{ [instanceId: string]: ConsulInstance }>(url, {
+      headers: {
+        destination: `${process.env.CONSUL_HOST}:${Number(process.env.CONSUL_PORT)}`
+      }
+    });
     const instances = Object.values(resp.data);
     return instances;
   }
 
   async getInstanceHealth(instanceId: string) {
     try {
-      const resp = await axios.get(constructUrlToHit(process.env.CONSUL_HOST, Number(process.env.CONSUL_PORT), `/v1/agent/health/service/id/${instanceId}`));
+      const resp = await axios.get(constructUrlToHit(`/v1/agent/health/service/id/${instanceId}`), {
+        headers: {
+          destination: `${process.env.CONSUL_HOST}:${Number(process.env.CONSUL_PORT)}`
+        }
+      });
       return resp.data.AggregatedStatus;
     } catch (err) {
       return err.response?.data?.AggregatedStatus || 'critical';
@@ -116,7 +138,11 @@ export class Agent {
         ...meta,
       }
     })
-    await axios.put(constructUrlToHit(process.env.CONSUL_HOST, Number(process.env.CONSUL_PORT), '/v1/agent/service/register'), newPayload);
+    await axios.put(constructUrlToHit('/v1/agent/service/register'), newPayload, {
+      headers: {
+        destination: `${process.env.CONSUL_HOST}:${Number(process.env.CONSUL_PORT)}`
+      }
+    });
   }
 
   async getActiveInstances() {
@@ -137,6 +163,10 @@ export class Agent {
 
   getPort() {
     return this.port;
+  }
+
+  getSidecarPort() {
+    return this.sidecarPort;
   }
 
   getIp() {

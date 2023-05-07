@@ -72,8 +72,12 @@ export class Learner {
 
   async informLeaderOnConsensus(consensus: Consensus) {
     const leader = await this.getLeader();
-    const url = constructUrlToHit(leader.Meta.ip, leader.Port, '/alerts/leader/consensus');
-    await axios.post(url, { consensus });
+    const url = constructUrlToHit('/alerts/leader/consensus');
+    await axios.post(url, { consensus }, {
+      headers: {
+        destination: `${leader.Meta.ip}:${leader.Port}`
+      }
+    });
     Logger.log(`INFORMED LEADER - ${leader.ID} ON CONSENSUS REACHED`);
     this.clearResponses();
   }

@@ -77,7 +77,11 @@ export class Leader {
   private static async notifyRoles(nodesWithRoles: RoleNotification[]) {
     const promises = nodesWithRoles.map(async (nodeWithRole) => {
       await Agent.getSingleton().updateInstanceMeta(nodeWithRole.instanceId.toString(), { role: nodeWithRole.role });
-      await axios.post(constructUrlToHit(nodeWithRole.connectingIp, nodeWithRole.connectingPort, '/alerts/role'), { role: nodeWithRole.role })
+      await axios.post(constructUrlToHit('/alerts/role'), { role: nodeWithRole.role }, {
+        headers: {
+          destination: `${nodeWithRole.connectingIp}:${nodeWithRole.connectingPort}`
+        }
+      })
     });
     await Promise.all(promises);
     Logger.log(`ROLES NOTIFIED TO ALL NODES`)
@@ -88,8 +92,12 @@ export class Leader {
    */
   static async informLearner() {
     const [learner, proposers] = await Promise.all([getLearner(), getProposers()])
-    const url = constructUrlToHit(learner.Meta.ip, learner.Port, '/alerts/learner/proposer-count');
-    await axios.post(url, { proposerCount: proposers.length })
+    const url = constructUrlToHit('/alerts/learner/proposer-count');
+    await axios.post(url, { proposerCount: proposers.length }, {
+      headers: {
+        destination: `${learner.Meta.ip}:${learner.Port}`
+      }
+    })
     Logger.log('INFORMED LEARNER ON PROPOSERS COUNT')
   }
 
@@ -123,8 +131,12 @@ export class Leader {
    * @param proposerId The proposer to delegate work to.
    */
   private static async deletegateWorkToProposer(checkWork: PrimeCheckRequest, proposer: ConsulInstance) {
-    const url = constructUrlToHit(proposer.Meta.ip, proposer.Port, '/actions/proposer/checks/prime');
-    await axios.post(url, checkWork);
+    const url = constructUrlToHit('/actions/proposer/checks/prime');
+    await axios.post(url, checkWork, {
+      headers: {
+        destination: `${proposer.Meta.ip}:${proposer.Port}`
+      }
+    });
     Logger.log(`WORK HAS BEEN SCHEDULED TO PROPOSER - ${proposer.ID} | NUMBER - ${checkWork.check} | START - ${checkWork.start} | RANGE - ${checkWork.end}`);
   }
 

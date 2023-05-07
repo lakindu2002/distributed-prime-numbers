@@ -3,7 +3,7 @@ import routes from "@distributed/routes";
 import { Logger } from "@distributed/utils/helpers";
 
 export class Server {
-  private server;
+  private server: express.Express;
 
   constructor() {
     this.server = express();

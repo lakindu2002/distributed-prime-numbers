@@ -18,11 +18,21 @@ class CLI {
         type: "string",
         demandOption: true,
       },
+      sidecar: {
+        alias: "sc",
+        describe: "sidecar port",
+        type: "number",
+        demandOption: true,
+      },
     }).argv;
   }
 
   getPortNumber() {
     return Number(this.argv.port);
+  }
+
+  getSidecarPortNumber() {
+    return Number(this.argv.sidecar);
   }
 
   getHostName() {
