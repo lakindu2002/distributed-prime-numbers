@@ -6,6 +6,8 @@ import { Logger } from "@distributed/utils/helpers/logger";
 import { Agent } from "@distributed/utils/agent";
 import { appendToFile, readTextFile } from "@distributed/utils/helpers/file-util";
 
+const MAX_ERRORS_ALLOWED_BY_PROPOSERS = 3;
+
 export class Leader {
   private static MAX_ACCEPTORS: number = 2;
   private static MAX_LEARNERS: number = 1;
@@ -16,6 +18,37 @@ export class Leader {
    * the current number position that is being processed in the system
    */
   private static currentCheckingNumberIndex = 0;
+
+
+  private static errorsHandled: { [primeCheckNumber: number]: number } = {};
+
+  static async handlePrimeCheckError(request: PrimeCheckRequest, errorBy: number) {
+    if ((this.errorsHandled[request.check] || 0) > MAX_ERRORS_ALLOWED_BY_PROPOSERS) {
+      // number being checked exceeded max retries.
+      // clear the schedule being executed, and retry that number with different schedule
+      await Leader.informLearner(); // inform learners how many proposers are in the new schedule
+      await Leader.sendNumberWithSchedulingToProposers(request.check);
+    }
+    const proposers = await this.getProposers()
+    const filteredProposers = proposers.filter((proposer) => proposer.ID === errorBy.toString());
+    const proposerToCheck = filteredProposers[0];
+
+    await this.informProposerToRecalculate(request, proposerToCheck);
+  }
+
+  private static async informProposerToRecalculate(request: PrimeCheckRequest, proposer: ConsulInstance) {
+    try {
+      const url = constructUrlToHit('/actions/proposer/checks/prime');
+      await axios.post(url, request, {
+        headers: {
+          destination: `${proposer.Meta.ip}:${proposer.Port}`
+        }
+      })
+      this.errorsHandled[request.check] = (this.errorsHandled[request.check] || 0) + 1
+    } catch (err) {
+      Logger.log(`FAILED TO INFORM PROPOSER - ${err?.message}`);
+    }
+  }
 
   static clearFileInformation() {
     this.numbersToCheck = [];
@@ -180,7 +213,11 @@ export class Leader {
   }
 
 
-  static async sendNumberWithSchedulingToProposers() {
+  /**
+   * Method to delegate work to each proposer.
+   * @param forceNumberCheck The number to forcefully pass to the proposer rather than taking from the file
+   */
+  static async sendNumberWithSchedulingToProposers(forceNumberCheck?: number) {
     const numberToCheck = this.getNextNumber();
     if (!numberToCheck) {
       Logger.log('NO NEW NUMBER TO CHECK. ALL NUMBERS WERE CHECKED');

@@ -1,7 +1,8 @@
 import axios from "axios";
 import node from "@distributed/utils/node";
-import { LearnerResponse, PrimeProcess } from "@distributed/types/common";
+import { ERROR, LearnerResponse, PrimeCheckRequest, PrimeProcess } from "@distributed/types/common";
 import { Logger, constructUrlToHit, getLearner as getLearnerUtil, isPrime } from "@distributed/utils/helpers";
+import { Agent } from "../agent";
 
 export class Acceptor {
   private static async getLearner() {
@@ -14,7 +15,7 @@ export class Acceptor {
    * @param primeResult The result given by the proposer
    * @returns A verified object that can be forwarded to the learner.
    */
-  private static analyzeResult(primeResult: PrimeProcess, checkedBy: number): LearnerResponse {
+  private static analyzeResult(primeResult: PrimeProcess, checkedBy: number): LearnerResponse | undefined {
     const { action, payload, } = primeResult;
     if (action === 'prime') {
       Logger.log('PROPOSER SAID IT WAS A PRIME. NOT VERIFYING');
@@ -30,8 +31,7 @@ export class Acceptor {
         return { checkedNumber: primeResult.payload.number, type: 'non-prime', checkedBy };
       }
       Logger.log(`PROPOSER MADE AN ERROR.`);
-      const isItPrime = isPrime(primeResult.payload.number, primeResult.payload.start, primeResult.payload.end); // re check to see what happened here.
-      return { checkedNumber: primeResult.payload.number, type: isItPrime ? 'prime' : 'non-prime', checkedBy };
+      return undefined;
     }
   }
 
@@ -52,6 +52,18 @@ export class Acceptor {
 
   static async verifyProposerResult(primeResponse: PrimeProcess, checkedBy: number) {
     const verifiedResponse = this.analyzeResult(primeResponse, checkedBy);
+    if (!verifiedResponse) {
+      Logger.log('INFORM LEADER ABOUT INVALID OUTPUT');
+      const checkRequest: PrimeCheckRequest = { check: primeResponse.payload.number, start: primeResponse.payload.start, end: primeResponse.payload.end };
+      const leaderId = node.getLeaderId();
+      const leader = await Agent.getSingleton().getInstance(leaderId.toString());
+      const url = constructUrlToHit('/actions/leader/error');
+      await axios.post(url, { request: checkRequest, type: ERROR.PRIME_CHECK, madeBy: checkedBy }, {
+        headers: {
+          destination: `${leader.Meta.ip}:${leader.Port}`
+        }
+      })
+    }
     Logger.log(`VERIFIED RESPONSE IN ACCEPTOR - ${node.getNodeId()} FOR NUMBER - ${primeResponse.payload.number}`);
     Logger.log(`${checkedBy} INITIALLY SAID IT WAS - ${primeResponse.action}. ACCEPTOR SAYS IT IS ${verifiedResponse.type}`);
     await this.informLearnerOnResponse(verifiedResponse);

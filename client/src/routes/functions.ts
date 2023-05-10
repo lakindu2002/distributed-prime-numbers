@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import node from "@distributed/utils/node";
 import { Agent } from "@distributed/utils/agent";
 import { Logger } from "@distributed/utils/helpers";
-import { Consensus, LearnerResponse, PrimeCheckRequest, PrimeProcess, Role } from "@distributed/types/common";
+import { Consensus, ERROR, LearnerResponse, PrimeCheckRequest, PrimeProcess, Role } from "@distributed/types/common";
 import { Leader } from "@distributed/utils/leader-election/leader";
 import { startElection } from "@distributed/utils/leader-election/bully";
 import { Acceptor } from "@distributed/utils/paxos/acceptor";
@@ -101,4 +101,11 @@ export const deduceConsensus = async (req: Request, res: Response) => {
   await Leader.prepareRolesForNodes();
   await Leader.sendNumberWithSchedulingToProposers();
   res.json({ message: 'ACCEPTED' })
+}
+
+export const informLeaderOnError = async (req: Request, res: Response) => {
+  const { madeBy, request, type } = req.body as { request: PrimeCheckRequest, type: ERROR, madeBy: number };
+  Logger.log(`PROCESSING ERROR - ${type} MADE BY NODE - ${madeBy}`)
+  await Leader.handlePrimeCheckError(request, madeBy);
+  res.json('ERROR ACCEPTED');
 }

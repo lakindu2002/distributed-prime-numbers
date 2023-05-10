@@ -1,3 +1,7 @@
+export enum ERROR {
+  PRIME_CHECK = 'prime-check'
+}
+
 export interface ConnectedNode {
   instanceId: number;
   ip: string;
