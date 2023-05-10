@@ -37,12 +37,16 @@ export class Acceptor {
   private static async informLearnerOnResponse(result: LearnerResponse) {
     const learner = await this.getLearner();
     const url = constructUrlToHit('/actions/learner/accept-response')
-    await axios.post(url, { result }, {
-      headers: {
-        destination: `${learner.Meta.ip}:${learner.Port}`
-      }
-    })
-    Logger.log(`INFORMED LEARNER - ${learner.ID} ABOUT THE ACCEPTED RESPONSE BY THIS ACCEPTOR`);
+    try {
+      await axios.post(url, { result }, {
+        headers: {
+          destination: `${learner.Meta.ip}:${learner.Port}`
+        }
+      })
+      Logger.log(`INFORMED LEARNER - ${learner.ID} ABOUT THE ACCEPTED RESPONSE BY THIS ACCEPTOR`);
+    } catch (err) {
+      Logger.log(`ERROR - ${err?.message}`);
+    }
   }
 
   static async verifyProposerResult(primeResponse: PrimeProcess, checkedBy: number) {

@@ -43,12 +43,16 @@ export class Proposer {
     const { ip } = Meta;
 
     const url = constructUrlToHit('/actions/acceptor/accept-response')
-    await axios.post(url, { primeResponse: response, proposedBy: node.getNodeId() }, {
-      headers: {
-        destination: `${ip}:${Port}`
-      }
-    })
-    Logger.log(`RESPONSE PUSHED TO ACCEPTOR - ${randomAcceptor.ID}`);
+    try {
+      await axios.post(url, { primeResponse: response, proposedBy: node.getNodeId() }, {
+        headers: {
+          destination: `${ip}:${Port}`
+        }
+      })
+      Logger.log(`RESPONSE PUSHED TO ACCEPTOR - ${randomAcceptor.ID}`);
+    } catch (err) {
+      Logger.log(`ERROR - ${err?.message}`);
+    }
   }
 }
 

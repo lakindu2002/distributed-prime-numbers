@@ -100,11 +100,15 @@ export class Leader {
   private static async notifyRoles(nodesWithRoles: RoleNotification[]) {
     const promises = nodesWithRoles.map(async (nodeWithRole) => {
       await Agent.getSingleton().updateInstanceMeta(nodeWithRole.instanceId.toString(), { role: nodeWithRole.role });
-      await axios.post(constructUrlToHit('/alerts/role'), { role: nodeWithRole.role }, {
-        headers: {
-          destination: `${nodeWithRole.connectingIp}:${nodeWithRole.connectingPort}`
-        }
-      })
+      try {
+        await axios.post(constructUrlToHit('/alerts/role'), { role: nodeWithRole.role }, {
+          headers: {
+            destination: `${nodeWithRole.connectingIp}:${nodeWithRole.connectingPort}`
+          }
+        })
+      } catch (err) {
+        Logger.log(`ERROR - ${err?.message}`)
+      }
     });
     await Promise.all(promises);
     Logger.log(`ROLES NOTIFIED TO ALL NODES`)
@@ -116,12 +120,16 @@ export class Leader {
   static async informLearner() {
     const [learner, proposers] = await Promise.all([getLearner(), getProposers()])
     const url = constructUrlToHit('/alerts/learner/proposer-count');
-    await axios.post(url, { proposerCount: proposers.length }, {
-      headers: {
-        destination: `${learner.Meta.ip}:${learner.Port}`
-      }
-    })
-    Logger.log('INFORMED LEARNER ON PROPOSERS COUNT')
+    try {
+      await axios.post(url, { proposerCount: proposers.length }, {
+        headers: {
+          destination: `${learner.Meta.ip}:${learner.Port}`
+        }
+      })
+      Logger.log('INFORMED LEARNER ON PROPOSERS COUNT')
+    } catch (err) {
+      Logger.log(`ERROR - ${err?.message}`)
+    }
   }
 
   /**
@@ -155,12 +163,16 @@ export class Leader {
    */
   private static async deletegateWorkToProposer(checkWork: PrimeCheckRequest, proposer: ConsulInstance) {
     const url = constructUrlToHit('/actions/proposer/checks/prime');
-    await axios.post(url, checkWork, {
-      headers: {
-        destination: `${proposer.Meta.ip}:${proposer.Port}`
-      }
-    });
-    Logger.log(`WORK HAS BEEN SCHEDULED TO PROPOSER - ${proposer.ID} | NUMBER - ${checkWork.check} | START - ${checkWork.start} | RANGE - ${checkWork.end}`);
+    try {
+      await axios.post(url, checkWork, {
+        headers: {
+          destination: `${proposer.Meta.ip}:${proposer.Port}`
+        }
+      });
+      Logger.log(`WORK HAS BEEN SCHEDULED TO PROPOSER - ${proposer.ID} | NUMBER - ${checkWork.check} | START - ${checkWork.start} | RANGE - ${checkWork.end}`);
+    } catch (err) {
+      Logger.log(`ERROR - ${err?.message}`);
+    }
   }
 
   static async storeConsensus(consensus: Consensus) {

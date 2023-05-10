@@ -62,12 +62,16 @@ export const startElection = async (nodeId: number) => {
     Logger.log(`HAVE ${higherNodes.length} NODES WITH HIGHER ID THAN ${nodeId}`)
     const promises = higherNodes.map(async (electingNode) => {
       const electionUrl = constructUrlToHit('/election');
-      await axios.post(electionUrl, { invokeNodeId: nodeId }, {
-        headers: {
-          destination: `${electingNode.ip}:${electingNode.port}`
-        }
-      })
-      Logger.log(`HANDING ELECTION OVER TO: ${nodeId}`)
+      try {
+        await axios.post(electionUrl, { invokeNodeId: nodeId }, {
+          headers: {
+            destination: `${electingNode.ip}:${electingNode.port}`
+          }
+        })
+        Logger.log(`HANDING ELECTION OVER TO: ${nodeId}`)
+      } catch (err) {
+        Logger.log(`ERROR - ${err?.message}`);
+      }
     });
     await Promise.all(promises);
   }
@@ -100,11 +104,15 @@ export const notifyLeaderElected = async (leaderId: number) => {
     const payload = {
       leaderId
     }
-    await axios.post(url, payload, {
-      headers: {
-        destination: `${connectedNode.ip}:${connectedNode.port}`
-      }
-    });
+    try {
+      await axios.post(url, payload, {
+        headers: {
+          destination: `${connectedNode.ip}:${connectedNode.port}`
+        }
+      });
+    } catch (err) {
+      Logger.log(`ERROR - ${err?.message}`);
+    }
   })
   await Promise.all(requests);
   Logger.log(`ELECTED - ${leaderId} AS THE LEADER IN THIS SYSTEM`)

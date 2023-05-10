@@ -27,12 +27,16 @@ export const getAllConnectedNodesFromRegistry = async (): Promise<ConnectedNode[
  */
 export const getNodesInformation = async (nodes: ConnectedNode[]): Promise<NodeResponse[]> => {
   const promises = nodes.map(async (eachNode) => {
-    const resp = await axios.get<Partial<NodeResponse>>(constructUrlToHit('/information'), {
-      headers: {
-        destination: `${eachNode.ip}:${eachNode.port}`
-      }
-    })
-    return { ...resp.data, ip: eachNode.ip } as NodeResponse;
+    try {
+      const resp = await axios.get<Partial<NodeResponse>>(constructUrlToHit('/information'), {
+        headers: {
+          destination: `${eachNode.ip}:${eachNode.port}`
+        }
+      })
+      return { ...resp.data, ip: eachNode.ip } as NodeResponse;
+    } catch (err) {
+      Logger.log(`ERROR - ${err?.message}`);
+    }
   })
   const responses = await Promise.all(promises);
   return responses;

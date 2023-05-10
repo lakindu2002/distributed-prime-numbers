@@ -80,12 +80,16 @@ export class Agent {
 
   async disconnectFromServer() {
     const url = constructUrlToHit(`/v1/agent/service/deregister/${this.instanceId}`);
-    await axios.put(url, undefined, {
-      headers: {
-        destination: `${process.env.CONSUL_HOST}:${Number(process.env.CONSUL_PORT)}`
-      }
-    })
-    node.removePing();
+    try {
+      await axios.put(url, undefined, {
+        headers: {
+          destination: `${process.env.CONSUL_HOST}:${Number(process.env.CONSUL_PORT)}`
+        }
+      })
+      node.removePing();
+    } catch (err) {
+      Logger.log(`ERROR - ${err?.message}`)
+    }
   }
 
   async getInstance(instanceId: string) {
@@ -99,13 +103,18 @@ export class Agent {
 
   async getInstances(): Promise<ConsulInstance[]> {
     const url = constructUrlToHit('/v1/agent/services')
-    const resp = await axios.get<{ [instanceId: string]: ConsulInstance }>(url, {
-      headers: {
-        destination: `${process.env.CONSUL_HOST}:${Number(process.env.CONSUL_PORT)}`
-      }
-    });
-    const instances = Object.values(resp.data);
-    return instances;
+    try {
+      const resp = await axios.get<{ [instanceId: string]: ConsulInstance }>(url, {
+        headers: {
+          destination: `${process.env.CONSUL_HOST}:${Number(process.env.CONSUL_PORT)}`
+        }
+      });
+      const instances = Object.values(resp.data);
+      return instances;
+    } catch (err) {
+      Logger.log(`ERROR - ${err?.message}`)
+      return [];
+    }
   }
 
   async getInstanceHealth(instanceId: string) {
@@ -138,11 +147,15 @@ export class Agent {
         ...meta,
       }
     })
-    await axios.put(constructUrlToHit('/v1/agent/service/register'), newPayload, {
-      headers: {
-        destination: `${process.env.CONSUL_HOST}:${Number(process.env.CONSUL_PORT)}`
-      }
-    });
+    try {
+      await axios.put(constructUrlToHit('/v1/agent/service/register'), newPayload, {
+        headers: {
+          destination: `${process.env.CONSUL_HOST}:${Number(process.env.CONSUL_PORT)}`
+        }
+      });
+    } catch (err) {
+      Logger.log(`ERROR - ${err?.message}`)
+    }
   }
 
   async getActiveInstances() {
