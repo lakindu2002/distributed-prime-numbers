@@ -1,7 +1,7 @@
 import axios from "axios";
 import node from "@distributed/utils/node";
 import { LearnerResponse, PrimeProcess } from "@distributed/types/common";
-import { Logger, constructUrlToHit, getLearner as getLearnerUtil } from "@distributed/utils/helpers";
+import { Logger, constructUrlToHit, getLearner as getLearnerUtil, isPrime } from "@distributed/utils/helpers";
 
 export class Acceptor {
   private static async getLearner() {
@@ -29,8 +29,9 @@ export class Acceptor {
         Logger.log(`VERIFIED. ${checkedNumber} IS NOT PRIME`);
         return { checkedNumber: primeResult.payload.number, type: 'non-prime', checkedBy };
       }
-      Logger.log(`PROPOSER MADE AN ERROR. IT IS ACTUALLY PRIME`);
-      return { checkedNumber: primeResult.payload.number, type: 'prime', checkedBy };
+      Logger.log(`PROPOSER MADE AN ERROR.`);
+      const isItPrime = isPrime(primeResult.payload.number, primeResult.payload.start, primeResult.payload.end); // re check to see what happened here.
+      return { checkedNumber: primeResult.payload.number, type: isItPrime ? 'prime' : 'non-prime', checkedBy };
     }
   }
 
