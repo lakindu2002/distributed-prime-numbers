@@ -1,5 +1,4 @@
 import axios from "axios";
-import { sortBy } from 'lodash';
 import node from "@distributed/utils/node";
 import { NodeResponse } from "@distributed/types/common";
 import { constructUrlToHit, getAllConnectedNodesFromRegistry, getNodes, getRandomTimeDuration } from "@distributed/utils/helpers/common";
@@ -61,20 +60,20 @@ export const startElection = async (nodeId: number) => {
   } else {
     // there are higher nodes, let them take over.
     Logger.log(`HAVE ${higherNodes.length} NODES WITH HIGHER ID THAN ${nodeId}`)
-    // sort in ascending order, and hit the next higher node.
-    const sortedNodes = sortBy(higherNodes, (higherNode) => higherNode.nodeId);
-    const nextHigherNode = sortedNodes[0];
-    const electionUrl = constructUrlToHit('/election');
-    try {
-      await axios.post(electionUrl, { invokeNodeId: nodeId }, {
-        headers: {
-          destination: `${nextHigherNode.ip}:${nextHigherNode.port}`
-        }
-      })
-      Logger.log(`HANDING ELECTION OVER TO: ${nodeId}`)
-    } catch (err) {
-      Logger.log(`ERROR - ${err?.message}`);
-    }
+    const promises = higherNodes.map(async (electingNode) => {
+      const electionUrl = constructUrlToHit('/election');
+      try {
+        await axios.post(electionUrl, { invokeNodeId: nodeId }, {
+          headers: {
+            destination: `${electingNode.ip}:${electingNode.port}`
+          }
+        })
+        Logger.log(`HANDING ELECTION OVER TO: ${nodeId}`)
+      } catch (err) {
+        Logger.log(`ERROR - ${err?.message}`);
+      }
+    });
+    await Promise.all(promises);
   }
 }
 
