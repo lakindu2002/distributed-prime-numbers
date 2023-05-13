@@ -64,7 +64,6 @@ export class Agent {
 
   connectWithServer() {
     const registerPayload = getConsulPayload({ appName: process.env.APP_NAME, instanceId: this.instanceId, port: this.port, ip: this.ipAddr });
-    console.log(constructUrlToHit('/v1/agent/service/register'))
     axios.put(constructUrlToHit('/v1/agent/service/register'), registerPayload, {
       headers: {
         destination: `${process.env.CONSUL_HOST}:${Number(process.env.CONSUL_PORT)}`
