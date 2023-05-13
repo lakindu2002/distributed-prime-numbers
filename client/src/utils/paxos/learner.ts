@@ -35,7 +35,6 @@ export class Learner {
   addResponse(response: LearnerResponse) {
     this.finalizedResponses.push(response);
     this.responsesToArrive--;
-    Logger.log(`ACCEPTED A RESPONSE FROM AN ACCEPTOR. ${this.responsesToArrive} RESPONSES LEFT TO REACH CONSENSUS`);
   }
 
   setResponsesToArrive(responsesToArrive: number) {
