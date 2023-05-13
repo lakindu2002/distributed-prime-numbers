@@ -218,14 +218,21 @@ export class Leader {
    * @param forceNumberCheck The number to forcefully pass to the proposer rather than taking from the file
    */
   static async sendNumberWithSchedulingToProposers(forceNumberCheck?: number) {
-    const numberToCheck = this.getNextNumber();
-    if (!numberToCheck) {
+    let number;
+    if (forceNumberCheck) {
+      number = forceNumberCheck;
+    } else {
+      number = this.getNextNumber();
+    }
+
+    if (!number) {
       Logger.log('NO NEW NUMBER TO CHECK. ALL NUMBERS WERE CHECKED');
       return;
     }
+
     const proposers = await this.getProposers();
 
-    const scheduledWork = this.scheduleWorkForProposers(numberToCheck, proposers.map((proposer) => proposer.ID));
+    const scheduledWork = this.scheduleWorkForProposers(number, proposers.map((proposer) => proposer.ID));
 
     const promises = Object.entries(scheduledWork).map(async ([proposerId, work]) => {
       const proposer = proposers.find((eachProposer) => eachProposer.ID === proposerId);
